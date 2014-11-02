@@ -7,7 +7,7 @@ defmodule Exmapper do
     database = params[:database]
     size = if is_nil(params[:pool_size]), do: 1, else: params[:pool_size]
     encoding = if is_nil(params[:encoding]), do: :utf8, else: params[:encoding]
-    pool = if is_nil(params[:repo]), do: :pool, else: params[:repo] 
+    pool = if is_nil(params[:repo]), do: :default, else: params[:repo] 
     if is_binary(user), do: user = String.to_char_list(user)
     if is_binary(password), do: password = String.to_char_list(password)
     if is_binary(database), do: database = String.to_char_list(database)
@@ -16,7 +16,7 @@ defmodule Exmapper do
     :emysql.add_pool(pool, [{:size,size}, {:user,user}, {:password,password}, {:database,database}, {:encoding,encoding}])
   end
 
-  def query(query, args \\ [], pool \\ :pool) do
+  def query(query, args \\ [], pool \\ :default) do
     Logger.debug(query)
     :emysql.prepare(:q, query)
     :emysql.execute(pool, :q, Enum.map(args,fn(x) ->

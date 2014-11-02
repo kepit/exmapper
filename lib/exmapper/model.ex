@@ -133,7 +133,7 @@ defmodule Exmapper.Model do
       import Table
       require Logger
 
-      repo = :pool
+      repo = :default
       unless is_nil(unquote(opts)[:repo]), do: repo = unquote(opts)[:repo]
       @repo repo
       @field_types [string: "VARCHAR(255)", integer: "INT", text: "TEXT", float: "FLOAT", double: "DOUBLE", boolean: "TINYINT(1)", datetime: "DATETIME"]
