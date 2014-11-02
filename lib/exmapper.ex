@@ -67,7 +67,7 @@ defmodule Exmapper do
                        end)," AND ")
   end
 
-  def all(table, args \\ [], pool \\ :pool) do
+  def all(table, args \\ [], pool \\ :default) do
     where = ""
     limit = ""
     order_by = "id ASC"
@@ -85,7 +85,7 @@ defmodule Exmapper do
     query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} #{limit}",List.flatten(Keyword.values(args)),pool)
   end
 
-  def count(table, args \\ [], pool \\ :pool) do
+  def count(table, args \\ [], pool \\ :default) do
     where = ""
     if Enum.count(args) > 0 do
       where = "WHERE #{where(args)} "
@@ -93,7 +93,7 @@ defmodule Exmapper do
     query("SELECT COUNT(*) FROM #{table} #{where}",Keyword.values(args),pool)
   end
 
-  def first(table, args \\ [], pool \\ :pool) do
+  def first(table, args \\ [], pool \\ :default) do
     where = ""
     limit = 1
     order_by = "id ASC"
@@ -111,7 +111,7 @@ defmodule Exmapper do
     query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} LIMIT #{limit}",List.flatten(Keyword.values(args)),pool)
   end
 
-  def last(table, args \\ [], pool \\ :pool) do
+  def last(table, args \\ [], pool \\ :defaut) do
     where = ""
     limit = 1
     order_by = "id DESC"
@@ -129,7 +129,7 @@ defmodule Exmapper do
     query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} LIMIT #{limit}",List.flatten(Keyword.values(args)),pool)
   end
 
-  def get(table, id, pool \\ :pool) do
+  def get(table, id, pool \\ :default) do
     query("SELECT * FROM #{table} WHERE id = ? LIMIT 1",[id],pool)
   end
 
