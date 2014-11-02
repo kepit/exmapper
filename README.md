@@ -11,21 +11,21 @@ Exmapper.connect(username: "[username]", password: "[password]", database: "[dat
 ### Model
 ```
 defmodule Model do
-	use Exmapper.Model
-	table :models do
-		field :name, :string
+  use Exmapper.Model
+  table :models do
+    field :name, :string
 
-		before_to :delete, &Model.before_delete/1
-		after_to :delete, &Model.after_delete/1
-	end
+    before_to :delete, &Model.before_delete/1
+    after_to :delete, &Model.after_delete/1
+  end
 
   def before_delete(data) do
-		Logger.warn inspect data
-	end
+    Logger.warn inspect data
+  end
 
   def after_delete(data) do
-		Logger.warn inspect data
-	end
+    Logger.warn inspect data
+  end
 end
 ```
 
