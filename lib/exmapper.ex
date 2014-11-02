@@ -1,7 +1,7 @@
 defmodule Exmapper do
-	require Logger
+  require Logger
 
-	def connect(params) do
+  def connect(params) do
     user = params[:username]
     password = params[:password]
     database = params[:database]

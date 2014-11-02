@@ -1,7 +1,7 @@
 defmodule Exmapper.Model do
 
-	defmodule Table do
-		defmodule Field do
+  defmodule Table do
+    defmodule Field do
 
       defmacro field(name,type \\ :string,opts \\ []) do
         quote do
