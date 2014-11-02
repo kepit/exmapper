@@ -1,2 +1,2 @@
 %{"emysql": {:git, "git://github.com/eonblast/emysql.git", "c7e2103f8b737667f0128802e8de2f0d5ed2fa5c", []},
-  "timex": {:git, "git://github.com/bitwalker/timex.git", "99334777d2f5bc13a8b17b19dcd9873058abc0dd", []}}
+  "timex": {:package, "0.13.0"}}
