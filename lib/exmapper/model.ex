@@ -30,7 +30,7 @@ defmodule Exmapper.Model do
       end
       defmacro has_many(name,mod, opts \\ []) do
         quote do
-          foreign_key = unquote(opts[:foreign_key]) || String.to_atom((__MODULE__ |> Module.split |> List.last |> Mix.Utils.underscore) <> "_id")
+          foreign_key = unquote(opts[:foreign_key]) || Exmapper.module_to_id(__MODULE__)
           fields = Module.get_attribute(__MODULE__,:fields)
           field = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :has_many, opts: unquote(opts) ++ [foreign_key: foreign_key, mod: unquote(mod)]]}])
           Module.put_attribute(__MODULE__,:fields,fields++field)
@@ -97,21 +97,33 @@ defmodule Exmapper.Model do
                                  :has_many ->
                                    if params[:id] != nil do
                                      mod = field[:opts][:mod]
+                                     through = field[:opts][:through]
                                      foreign_key = field[:opts][:foreign_key]
                                      (fn(args) ->
+                                        query = Keyword.new([{foreign_key, params[:id]}])
+                                        if through != nil do
+                                          assoc_args = query |>
+                                            Keyword.put(:order_by, Atom.to_string(foreign_key))
+                                          assoc = through.all(assoc_args)
+                                          assoc_mod_id = Exmapper.module_to_id(mod)
+                                          ids = Enum.map assoc, fn(a) ->
+                                            Map.get(a,assoc_mod_id)
+                                          end
+                                          query = Keyword.new([{String.to_atom("id.in"), ids}])
+                                        end
                                         if is_list(args) do
                                           type = Enum.at(args,0)
-                                          args = Enum.drop(args,1) ++ Keyword.new([{foreign_key, params[:id]}])
+                                          args = Enum.drop(args,1) ++ query
                                         else
                                           type = args
-                                          args = Keyword.new([{foreign_key, params[:id]}])
+                                          args = query
                                         end
                                         case type do
                                           :all -> 
                                             mod.all(args)
                                           :first -> 
                                             mod.first(args)
-                                          :last ->
+                                          :last -> 
                                             mod.last(args)
                                         end
                                       end)

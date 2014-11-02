@@ -38,7 +38,7 @@ defmodule Exmapper do
   end
 
   defp where(keyword \\ []) do
-    Enum.join(Enum.map(keyword, fn({key,_}) ->
+    Enum.join(Enum.map(keyword, fn({key,value}) ->
                          mark = "="
                          key = Atom.to_string(key)
                          case List.last(String.split(key,".")) do
@@ -52,11 +52,18 @@ defmodule Exmapper do
                              mark = "<="
                            "like" -> 
                              mark = "LIKE"
+                           "in" ->
+                             mark = "IN"
                            _ ->
                              mark = "="
                          end
-                         key = String.replace(key,~r/.gte|.gt|.lte|.lt|.like/,"")
-                         "#{key} #{mark} ?" #"?"
+                         key = String.replace(key,~r/.gte|.gt|.lte|.lt|.like|.in/,"")
+                         val = "?"
+                         if mark == "IN" do
+                           questions = Enum.join(Enum.map(value, fn(v) -> "?" end),",")
+                           val = "(#{questions})"
+                         end
+                         "#{key} #{mark} #{val}" #"?"
                        end)," AND ")
   end
 
@@ -75,7 +82,7 @@ defmodule Exmapper do
     if Enum.count(args) > 0 do
       where = "WHERE #{where(args)} "
     end
-    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} #{limit}",Keyword.values(args),pool)
+    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} #{limit}",List.flatten(Keyword.values(args)),pool)
   end
 
   def count(table, args \\ [], pool \\ :pool) do
@@ -101,7 +108,7 @@ defmodule Exmapper do
     if Enum.count(args) > 0 do
       where = "WHERE #{where(args)} "
     end
-    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} LIMIT #{limit}",Keyword.values(args),pool)
+    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} LIMIT #{limit}",List.flatten(Keyword.values(args)),pool)
   end
 
   def last(table, args \\ [], pool \\ :pool) do
@@ -119,7 +126,7 @@ defmodule Exmapper do
     if Enum.count(args) > 0 do
       where = "WHERE #{where(args)} "
     end
-    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} LIMIT #{limit}",Keyword.values(args),pool)
+    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} LIMIT #{limit}",List.flatten(Keyword.values(args)),pool)
   end
 
   def get(table, id, pool \\ :pool) do
@@ -143,5 +150,9 @@ defmodule Exmapper do
                                 end
                               end),nil)
     end
+  end
+  
+  def module_to_id(module) do
+    String.to_atom((module |> Module.split |> List.last |> Mix.Utils.underscore) <> "_id")
   end
 end
