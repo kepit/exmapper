@@ -13,10 +13,10 @@ defmodule Exmapper do
     :application.start(:crypto)
     :application.start(:emysql)
     :emysql.add_pool(:pool, [{:size,size}, {:user,user}, {:password,password}, {:database,database}, {:encoding,encoding}])
-	end
+  end
 
   def query(query, args \\ []) do
-		Logger.debug(query)
+    Logger.debug(query)
     :emysql.prepare(:q, query)
     :emysql.execute(:pool, :q, Enum.map(args,fn(x) ->
                                           cond do

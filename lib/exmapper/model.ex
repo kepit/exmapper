@@ -3,50 +3,50 @@ defmodule Exmapper.Model do
 	defmodule Table do
 		defmodule Field do
 
-			defmacro field(name,type \\ :string,opts \\ []) do
-				quote do
-					fields = Module.get_attribute(__MODULE__,:fields)
-					Module.put_attribute(__MODULE__,:fields,fields++Keyword.new([{unquote(name), [name: unquote(name), type: unquote(type), opts: unquote(opts)]}]))
-				end
-			end
+      defmacro field(name,type \\ :string,opts \\ []) do
+        quote do
+          fields = Module.get_attribute(__MODULE__,:fields)
+          Module.put_attribute(__MODULE__,:fields,fields++Keyword.new([{unquote(name), [name: unquote(name), type: unquote(type), opts: unquote(opts)]}]))
+        end
+      end
       defmacro before_to(cmd,fun) do
-				quote do
-					Module.put_attribute(__MODULE__,:befores,Keyword.put(Module.get_attribute(__MODULE__,:befores),:"#{unquote(cmd)}",unquote(fun)))
-				end
-			end
+        quote do
+          Module.put_attribute(__MODULE__,:befores,Keyword.put(Module.get_attribute(__MODULE__,:befores),:"#{unquote(cmd)}",unquote(fun)))
+        end
+      end
       defmacro after_to(cmd,fun) do
-				quote do
-					Module.put_attribute(__MODULE__,:afters,Keyword.put(Module.get_attribute(__MODULE__,:afters),:"#{unquote(cmd)}",unquote(fun)))
-				end
-			end
-			defmacro belongs_to(name,mod,opts \\ []) do
-				quote do
-					parent_field = :"#{unquote(name)}_id"
-					fields = Module.get_attribute(__MODULE__,:fields)
-					field = Keyword.new([{parent_field, [name: parent_field, type: :integer, opts: [foreign_key: true, mod: unquote(mod), required: true]]}])
-					virt = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :belongs_to, opts: [parent_field: parent_field, mod: unquote(mod)]]}])
-					Module.put_attribute(__MODULE__,:fields,fields++field++virt)
-				end
-			end
-			defmacro has_many(name,mod) do
-				quote do
-					fields = Module.get_attribute(__MODULE__,:fields)
-					field = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :has_many, opts: [mod: unquote(mod)]]}])
-					Module.put_attribute(__MODULE__,:fields,fields++field)
-				end							 
-			end
-		end
+        quote do
+          Module.put_attribute(__MODULE__,:afters,Keyword.put(Module.get_attribute(__MODULE__,:afters),:"#{unquote(cmd)}",unquote(fun)))
+        end
+      end
+      defmacro belongs_to(name,mod,opts \\ []) do
+        quote do
+          parent_field = :"#{unquote(name)}_id"
+          fields = Module.get_attribute(__MODULE__,:fields)
+          field = Keyword.new([{parent_field, [name: parent_field, type: :integer, opts: [foreign_key: true, mod: unquote(mod), required: true]]}])
+          virt = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :belongs_to, opts: [parent_field: parent_field, mod: unquote(mod)]]}])
+          Module.put_attribute(__MODULE__,:fields,fields++field++virt)
+        end
+      end
+      defmacro has_many(name,mod) do
+        quote do
+          fields = Module.get_attribute(__MODULE__,:fields)
+          field = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :has_many, opts: [mod: unquote(mod)]]}])
+          Module.put_attribute(__MODULE__,:fields,fields++field)
+        end               
+      end
+    end
 
     defmacro table(name,[do: block]) do
-			if is_binary(name), do: name = String.to_atom(name)
-			if is_list(name), do: name = List.to_atom(name)
-			quote do
-				import Field
+      if is_binary(name), do: name = String.to_atom(name)
+      if is_list(name), do: name = List.to_atom(name)
+      quote do
+        import Field
 
-				@fields []
-				@befores [delete: nil, create: nil, update: nil]
-				@afters [delete: nil, create: nil, update: nil]
-				@name unquote(name)
+        @fields []
+        @befores [delete: nil, create: nil, update: nil]
+        @afters [delete: nil, create: nil, update: nil]
+        @name unquote(name)
 
         field :id, :integer, primary_key: true, auto_increment: true, required: true
         unquote(block)
