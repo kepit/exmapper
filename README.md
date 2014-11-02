@@ -5,7 +5,7 @@ Elixir database wrapper
 
 ### Connect
 ```
-Exmapper.connect(username: ”[username]”, password: ”[password]”, database: ”[database]”, pool_size: 1, encoding: :utf8)
+Exmapper.connect(username: "[username]", password: "[password]", database: "[database]", pool_size: 1, encoding: :utf8)
 ```
 
 ### Model
