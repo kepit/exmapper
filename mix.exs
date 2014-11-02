@@ -27,7 +27,7 @@ defmodule Exmapper.Mixfile do
   defp deps do
     [
         { :emysql, github: "eonblast/emysql" },
-        { :timex, "~> 0.13.0", github: "bitwalker/timex" }
+        { :timex, "~> 0.13.0", [hex_app: :timex] }
     ]
   end
 end

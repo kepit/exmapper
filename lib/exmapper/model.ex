@@ -30,8 +30,9 @@ defmodule Exmapper.Model do
       end
       defmacro has_many(name,mod, opts \\ []) do
         quote do
+          foreign_key = unquote(opts[:foreign_key]) || String.to_atom((__MODULE__ |> Module.split |> List.last |> Mix.Utils.underscore) <> "_id")
           fields = Module.get_attribute(__MODULE__,:fields)
-          field = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :has_many, opts: unquote(opts) ++ [mod: unquote(mod)]]}])
+          field = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :has_many, opts: unquote(opts) ++ [foreign_key: foreign_key, mod: unquote(mod)]]}])
           Module.put_attribute(__MODULE__,:fields,fields++field)
         end               
       end
@@ -96,8 +97,7 @@ defmodule Exmapper.Model do
                                  :has_many ->
                                    if params[:id] != nil do
                                      mod = field[:opts][:mod]
-                                     name = Atom.to_string(__name__)
-                                     foreign_key = field[:opts][:foreign_key] || String.to_atom((__MODULE__ |> Module.split |> List.last |> Mix.Utils.underscore) <> "_id")
+                                     foreign_key = field[:opts][:foreign_key]
                                      (fn(args) ->
                                         if is_list(args) do
                                           type = Enum.at(args,0)
