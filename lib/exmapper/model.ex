@@ -30,9 +30,8 @@ defmodule Exmapper.Model do
       end
       defmacro has_many(name,mod, opts \\ []) do
         quote do
-          foreign_key = unquote(opts[:foreign_key]) || Exmapper.module_to_id(__MODULE__)
           fields = Module.get_attribute(__MODULE__,:fields)
-          field = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :has_many, opts: unquote(opts) ++ [foreign_key: foreign_key, mod: unquote(mod)]]}])
+          field = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :has_many, opts: unquote(opts) ++ [mod: unquote(mod)]]}])
           Module.put_attribute(__MODULE__,:fields,fields++field)
         end               
       end
@@ -97,33 +96,22 @@ defmodule Exmapper.Model do
                                  :has_many ->
                                    if params[:id] != nil do
                                      mod = field[:opts][:mod]
-                                     through = field[:opts][:through]
-                                     foreign_key = field[:opts][:foreign_key]
+                                     name = Atom.to_string(__name__)
+                                     foreign_key = field[:opts][:foreign_key] || String.to_atom((__MODULE__ |> Module.split |> List.last |> Mix.Utils.underscore) <> "_id")
                                      (fn(args) ->
-                                        query = Keyword.new([{foreign_key, params[:id]}])
-                                        if through != nil do
-                                          assoc_args = query |>
-                                            Keyword.put(:order_by, Atom.to_string(foreign_key))
-                                          assoc = through.all(assoc_args)
-                                          assoc_mod_id = Exmapper.module_to_id(mod)
-                                          ids = Enum.map assoc, fn(a) ->
-                                            Map.get(a,assoc_mod_id)
-                                          end
-                                          query = Keyword.new([{String.to_atom("id.in"), ids}])
-                                        end
                                         if is_list(args) do
                                           type = Enum.at(args,0)
-                                          args = Enum.drop(args,1) ++ query
+                                          args = Enum.drop(args,1) ++ Keyword.new([{foreign_key, params[:id]}])
                                         else
                                           type = args
-                                          args = query
+                                          args = Keyword.new([{foreign_key, params[:id]}])
                                         end
                                         case type do
                                           :all -> 
                                             mod.all(args)
                                           :first -> 
                                             mod.first(args)
-                                          :last -> 
+                                          :last ->
                                             mod.last(args)
                                         end
                                       end)
@@ -261,69 +249,26 @@ defmodule Exmapper.Model do
         end
       end
 
-      def to_keywords(value) do
-        if value == nil do
-          nil
-        else
-          if is_list(value) do
-            Enum.map(value, fn(x) -> to_keywords(x) end)
-          else
-            value = Keyword.delete(Map.to_list(value), :__struct__)
-            Enum.reject(Enum.map(value, fn({key,val}) ->
-                                   if is_map(val) do
-                                     {key,to_keywords(val)}
-                                   else
-                                     if is_function(val) do
-                                       nil
-                                     else
-                                       {key,val}
-                                     end
-                                   end
-                                 end),fn(x) -> is_nil(x) end)
-          end
-        end
-      end
+      def to_keywords(value), do: Exmapper.to_keywords(value)
+      def all(args \\ []), do: Enum.map(Exmapper.all(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist, fn(x) -> new(x) end)
+      def count(args \\ []), do: elem(List.first(List.first(Exmapper.count(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist)),1)
+      def first(args \\ []), do: first_last_get(Exmapper.first(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist)
+      def last(args \\ []), do: first_last_get(Exmapper.last(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist)
+      def get(id), do: first_last_get(Exmapper.get(Atom.to_string(__name__),id,@repo) |> Exmapper.to_proplist)
 
-      def all(args \\ []) do
-        Enum.map(Exmapper.all(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist, fn(x) -> new(x) end)
-      end
-
-      def count(args \\ []) do
-        elem(List.first(List.first(Exmapper.count(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist)),1)
-      end
-
-      def first(args \\ []) do
-        data = Exmapper.first(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist
+      defp first_last_get(data, reverse \\ false) do
         if Enum.count(data) > 1 do
-          Enum.map(data, fn(x) -> new(x) end)
+          if reverse do
+            Enum.reverse(Enum.map(data, fn(x) -> new(x) end))
+          else
+            Enum.map(data, fn(x) -> new(x) end)
+          end
         else
           if Enum.count(data) > 0 do
             new(List.first(data))
           else
             nil
           end
-        end
-      end
-
-      def last(args \\ []) do
-        data = Exmapper.last(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist
-        if Enum.count(data) > 1 do
-          Enum.reverse(Enum.map(data, fn(x) -> new(x) end))
-        else
-          if Enum.count(data) > 0 do
-            new(List.first(data))
-          else
-            nil
-          end
-        end
-      end
-
-      def get(id) do
-        data = Exmapper.get(Atom.to_string(__name__),id,@repo) |> Exmapper.to_proplist
-        if Enum.count(data) == 0 do
-          nil
-        else
-          new(List.first(data))
         end
       end
 

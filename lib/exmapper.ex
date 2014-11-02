@@ -67,10 +67,21 @@ defmodule Exmapper do
                        end)," AND ")
   end
 
-  def all(table, args \\ [], pool \\ :default) do
+  def count(table, args \\ [], pool \\ :default) do
+    where = ""
+    if Enum.count(args) > 0 do
+      where = "WHERE #{where(args)} "
+    end
+    query("SELECT COUNT(*) FROM #{table} #{where}",Keyword.values(args),pool)
+  end
+
+  def all(table, args \\ [], pool \\ :default), do: all_first_last(table,args,pool,"id ASC")
+  def first(table, args \\ [], pool \\ :defaut), do: all_first_last(table,Keyword.merge([limit: 1],args),pool,"id ASC")
+  def last(table, args \\ [], pool \\ :defaut), do: all_first_last(table,Keyword.merge([limit: 1],args),pool,"id DESC")
+
+  defp all_first_last(table,args,pool,order_by) do
     where = ""
     limit = ""
-    order_by = "id ASC"
     if Keyword.has_key?(args,:limit) do
       if is_integer(args[:limit]), do: limit = "LIMIT #{args[:limit]}"
       args = Keyword.delete(args,:limit)
@@ -85,70 +96,30 @@ defmodule Exmapper do
     query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} #{limit}",List.flatten(Keyword.values(args)),pool)
   end
 
-  def count(table, args \\ [], pool \\ :default) do
-    where = ""
-    if Enum.count(args) > 0 do
-      where = "WHERE #{where(args)} "
-    end
-    query("SELECT COUNT(*) FROM #{table} #{where}",Keyword.values(args),pool)
-  end
-
-  def first(table, args \\ [], pool \\ :default) do
-    where = ""
-    limit = 1
-    order_by = "id ASC"
-    if Keyword.has_key?(args,:limit) do
-      limit = args[:limit]
-      args = Keyword.delete(args,:limit)
-    end
-    if Keyword.has_key?(args,:order_by) do
-      if args[:order_by] != "" && is_binary(args[:order_by]), do: order_by = args[:order_by]
-      args = Keyword.delete(args,:order_by)
-    end
-    if Enum.count(args) > 0 do
-      where = "WHERE #{where(args)} "
-    end
-    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} LIMIT #{limit}",List.flatten(Keyword.values(args)),pool)
-  end
-
-  def last(table, args \\ [], pool \\ :defaut) do
-    where = ""
-    limit = 1
-    order_by = "id DESC"
-    if Keyword.has_key?(args,:limit) do
-      limit = args[:limit]
-      args = Keyword.delete(args,:limit)
-    end
-    if Keyword.has_key?(args,:order_by) do
-      if args[:order_by] != "" && is_binary(args[:order_by]), do: order_by = args[:order_by]
-      args = Keyword.delete(args,:order_by)
-    end
-    if Enum.count(args) > 0 do
-      where = "WHERE #{where(args)} "
-    end
-    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} LIMIT #{limit}",List.flatten(Keyword.values(args)),pool)
-  end
-
   def get(table, id, pool \\ :default) do
     query("SELECT * FROM #{table} WHERE id = ? LIMIT 1",[id],pool)
   end
 
   def to_keywords(value) do
-    if is_list(value) do
-      Enum.map(value, fn(x) -> to_keywords(x) end)
+    if value == nil do
+      nil
     else
-      value = Keyword.delete(Map.to_list(value), :__struct__)
-      Keyword.delete(Enum.map(value, fn({key,val}) ->
-                                if is_map(val) do
-                                  {key,to_keywords(val)}
-                                else
-                                  if is_function(val) do
-                                    nil
-                                  else
-                                    {key,val}
-                                  end
-                                end
-                              end),nil)
+      if is_list(value) do
+        Enum.map(value, fn(x) -> to_keywords(x) end)
+      else
+        value = Keyword.delete(Map.to_list(value), :__struct__)
+        Enum.reject(Enum.map(value, fn({key,val}) ->
+                               if is_map(val) do
+                                 {key,to_keywords(val)}
+                               else
+                                 if is_function(val) do
+                                   nil
+                                 else
+                                   {key,val}
+                                 end
+                               end
+                             end),fn(x) -> is_nil(x) end)
+      end
     end
   end
   
