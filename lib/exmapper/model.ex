@@ -24,14 +24,14 @@ defmodule Exmapper.Model do
           parent_field = :"#{unquote(name)}_id"
           fields = Module.get_attribute(__MODULE__,:fields)
           field = Keyword.new([{parent_field, [name: parent_field, type: :integer, opts: [foreign_key: true, mod: unquote(mod), required: true]]}])
-          virt = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :belongs_to, opts: [parent_field: parent_field, mod: unquote(mod)]]}])
+          virt = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :belongs_to, opts: unquote(opts) ++ [parent_field: parent_field, mod: unquote(mod)]]}])
           Module.put_attribute(__MODULE__,:fields,fields++field++virt)
         end
       end
-      defmacro has_many(name,mod) do
+      defmacro has_many(name,mod, opts \\ []) do
         quote do
           fields = Module.get_attribute(__MODULE__,:fields)
-          field = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :has_many, opts: [mod: unquote(mod)]]}])
+          field = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :has_many, opts: unquote(opts) ++ [mod: unquote(mod)]]}])
           Module.put_attribute(__MODULE__,:fields,fields++field)
         end               
       end
@@ -97,13 +97,14 @@ defmodule Exmapper.Model do
                                    if params[:id] != nil do
                                      mod = field[:opts][:mod]
                                      name = Atom.to_string(__name__)
+                                     foreign_key = field[:opts][:foreign_key] || String.to_atom((__MODULE__ |> Module.split |> List.last |> Mix.Utils.underscore) <> "_id")
                                      (fn(args) ->
                                         if is_list(args) do
                                           type = Enum.at(args,0)
-                                          args = Enum.drop(args,1) ++ Keyword.new([{:"#{String.slice(name,0,String.length(name)-1)}_id", params[:id]}])
+                                          args = Enum.drop(args,1) ++ Keyword.new([{foreign_key, params[:id]}])
                                         else
                                           type = args
-                                          args = Keyword.new([{:"#{String.slice(name,0,String.length(name)-1)}_id", params[:id]}])
+                                          args = Keyword.new([{foreign_key, params[:id]}])
                                         end
                                         case type do
                                           :all -> 
