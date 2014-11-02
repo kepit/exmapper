@@ -25,6 +25,6 @@ defmodule Exmapper.Mixfile do
   #
   # Type `mix help deps` for more examples and options
   defp deps do
-    [{ :emysql, github: "Eonblast/Emysql" }]
+    [{ :emysql, github: "eonblast/emysql" }]
   end
 end
