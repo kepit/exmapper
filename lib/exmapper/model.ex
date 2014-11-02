@@ -56,6 +56,10 @@ defmodule Exmapper.Model do
         def new do
           struct = %__MODULE__{}
           Enum.reduce(Map.to_list(struct), struct, fn({key,val}, acc) ->
+                        field = __fields__[key]
+                        if field[:type] == :datetime && is_nil(val) do
+                          val = {{0,0,0},{0,0,0}}
+                        end
                         if is_function(val) do
                           Map.put(acc, key, val.())
                         else
@@ -101,10 +105,14 @@ defmodule Exmapper.Model do
                                      false
                                    end
                                  :datetime ->
-                                   if elem(val,0) == :datetime do
+                                   if is_tuple(val) && elem(val,0) == :datetime do
                                      elem(val,1)
                                    else
-                                     val
+                                     if is_nil(val) do
+                                       {{0,0,0},{0,0,0}}
+                                     else
+                                       val
+                                     end
                                    end
                                  _ ->
                                    if is_function(val) do
