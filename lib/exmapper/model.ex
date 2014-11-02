@@ -126,7 +126,7 @@ defmodule Exmapper.Model do
                                    end
                                  :datetime ->
                                    if is_tuple(val) && elem(val,0) == :datetime do
-                                     elem(val,1)
+                                     Timex.Date.from(elem(val,1),:local)
                                    else
                                      if is_nil(val) do
                                       Timex.Date.from({{0,0,0},{0,0,0}}, :local)
@@ -325,7 +325,15 @@ defmodule Exmapper.Model do
           if args[:id] == nil, do: args = Keyword.delete(args,:id)
           args = Enum.reject(Enum.map(args,fn({key,val}) ->
                                            if __fields__[key][:opts][:required] == true && val == nil, do: raise("Field #{key} is required!")
-                                           if !is_virtual_type(__fields__[key][:type]), do: {key,val}, else: nil
+                                           if !is_virtual_type(__fields__[key][:type]) do
+                                             if __fields__[key][:type] == :datetime do
+                                               {key, {{val[:year],val[:month],val[:day]},{val[:hour],val[:minute],val[:second]}}}
+                                             else
+                                               {key,val}
+                                             end
+                                           else
+                                             nil
+                                           end
                                          end),fn(x) -> is_nil(x) end)
           values = Enum.join(List.duplicate(["?"],Enum.count(Keyword.values(args))),",")
           keys = Keyword.keys(args)
@@ -351,7 +359,17 @@ defmodule Exmapper.Model do
         else
           id = args[:id]
           args = Keyword.delete(args,:id)
-          args = Keyword.delete(Enum.map(args,fn({key,val}) -> if !is_virtual_type(__fields__[key][:type]), do: {key,val}, else: nil end),nil)
+          args = Keyword.delete(Enum.map(args,fn({key,val}) ->
+                                           if !is_virtual_type(__fields__[key][:type]) do
+                                             if __fields__[key][:type] == :datetime do
+                                               {key, {{val[:year],val[:month],val[:day]},{val[:hour],val[:minute],val[:second]}}}
+                                             else
+                                               {key,val}
+                                             end
+                                           else
+                                             nil 
+                                           end
+                                         end),nil)
           keys = Enum.join(Enum.map(args,fn({key,val}) -> "#{key} = ?" end),",")
           case Exmapper.query("UPDATE #{__name__} SET #{keys} WHERE id = ?",Keyword.values(args)++[id],@repo) do
             {:ok_packet, _, _, _, _, _, _} ->
