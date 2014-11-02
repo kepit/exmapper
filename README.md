@@ -11,7 +11,7 @@ Exmapper.connect(username: "[username]", password: "[password]", database: "[dat
 ### Model
 ```
 defmodule Model do
-  use Exmapper.Model
+  use Exmapper.Model, repo: :repository
   table :models do
     field :name, :string
 
