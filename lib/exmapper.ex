@@ -7,18 +7,19 @@ defmodule Exmapper do
     database = params[:database]
     size = if is_nil(params[:pool_size]), do: 1, else: params[:pool_size]
     encoding = if is_nil(params[:encoding]), do: :utf8, else: params[:encoding]
+    pool = if is_nil(params[:repo]), do: :pool, else: params[:repo] 
     if is_binary(user), do: user = String.to_char_list(user)
     if is_binary(password), do: password = String.to_char_list(password)
     if is_binary(database), do: database = String.to_char_list(database)
     :application.start(:crypto)
     :application.start(:emysql)
-    :emysql.add_pool(:pool, [{:size,size}, {:user,user}, {:password,password}, {:database,database}, {:encoding,encoding}])
+    :emysql.add_pool(pool, [{:size,size}, {:user,user}, {:password,password}, {:database,database}, {:encoding,encoding}])
   end
 
-  def query(query, args \\ []) do
+  def query(query, args \\ [], pool \\ :pool) do
     Logger.debug(query)
     :emysql.prepare(:q, query)
-    :emysql.execute(:pool, :q, Enum.map(args,fn(x) ->
+    :emysql.execute(pool, :q, Enum.map(args,fn(x) ->
                                           cond do
                                             is_boolean(x) ->
                                               if x == true do
@@ -59,7 +60,7 @@ defmodule Exmapper do
                        end)," AND ")
   end
 
-  def all(table, args \\ []) do
+  def all(table, args \\ [], pool \\ :pool) do
     where = ""
     limit = ""
     order_by = "id ASC"
@@ -74,18 +75,18 @@ defmodule Exmapper do
     if Enum.count(args) > 0 do
       where = "WHERE #{where(args)} "
     end
-    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} #{limit}",Keyword.values(args))
+    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} #{limit}",Keyword.values(args),pool)
   end
 
-  def count(table, args \\ []) do
+  def count(table, args \\ [], pool \\ :pool) do
     where = ""
     if Enum.count(args) > 0 do
       where = "WHERE #{where(args)} "
     end
-    query("SELECT COUNT(*) FROM #{table} #{where}",Keyword.values(args))
+    query("SELECT COUNT(*) FROM #{table} #{where}",Keyword.values(args),pool)
   end
 
-  def first(table, args \\ []) do
+  def first(table, args \\ [], pool \\ :pool) do
     where = ""
     limit = 1
     order_by = "id ASC"
@@ -100,10 +101,10 @@ defmodule Exmapper do
     if Enum.count(args) > 0 do
       where = "WHERE #{where(args)} "
     end
-    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} LIMIT #{limit}",Keyword.values(args))
+    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} LIMIT #{limit}",Keyword.values(args),pool)
   end
 
-  def last(table, args \\ []) do
+  def last(table, args \\ [], pool \\ :pool) do
     where = ""
     limit = 1
     order_by = "id DESC"
@@ -118,11 +119,11 @@ defmodule Exmapper do
     if Enum.count(args) > 0 do
       where = "WHERE #{where(args)} "
     end
-    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} LIMIT #{limit}",Keyword.values(args))
+    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} LIMIT #{limit}",Keyword.values(args),pool)
   end
 
-  def get(table, id) do
-    query("SELECT * FROM #{table} WHERE id = ? LIMIT 1",[id])
+  def get(table, id, pool \\ :pool) do
+    query("SELECT * FROM #{table} WHERE id = ? LIMIT 1",[id],pool)
   end
 
   def to_keywords(value) do

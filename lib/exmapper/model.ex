@@ -128,11 +128,14 @@ defmodule Exmapper.Model do
 
   
 
-  defmacro __using__(_) do
+  defmacro __using__(opts) do
     quote do
       import Table
       require Logger
 
+      repo = :pool
+      unless is_nil(unquote(opts)[:repo]), do: repo = unquote(opts)[:repo]
+      @repo repo
       @field_types [string: "VARCHAR(255)", integer: "INT", text: "TEXT", float: "FLOAT", double: "DOUBLE", boolean: "TINYINT(1)", datetime: "DATETIME"]
 
       defp fields_to_mysql(collection,joiner,fun) do
@@ -164,7 +167,7 @@ defmodule Exmapper.Model do
 
       def migrate do
         fields = fields_to_mysql(__fields__,", ",fn(x) -> "#{x[:name]} #{x[:type]} #{x[:opts]}" end)
-        case Exmapper.query("CREATE TABLE #{__name__}(#{fields})") do
+        case Exmapper.query("CREATE TABLE #{__name__}(#{fields})", [], @repo) do
           {:ok_packet, _, _, _, _, _, _} ->
             alter = Enum.join(List.delete(Enum.map(__fields__,fn({key,val}) ->
                                                      if val[:opts][:foreign_key] == true do
@@ -178,7 +181,7 @@ defmodule Exmapper.Model do
             if alter == "" do
               true
             else
-              case Exmapper.query("ALTER TABLE #{__name__} #{alter}") do
+              case Exmapper.query("ALTER TABLE #{__name__} #{alter}", [], @repo) do
                 {:ok_packet, _, _, _, _, _, _} ->
                   true
                 error ->
@@ -193,13 +196,13 @@ defmodule Exmapper.Model do
       end
 
       def upgrade do
-        old_fields = Enum.map(Exmapper.query("SHOW COLUMNS FROM #{__name__}") |> Exmapper.to_proplist, fn(x) -> String.to_atom(elem(List.first(x),1)) end)
+        old_fields = Enum.map(Exmapper.query("SHOW COLUMNS FROM #{__name__}", [], @repo) |> Exmapper.to_proplist, fn(x) -> String.to_atom(elem(List.first(x),1)) end)
         new_fields = Enum.reject(__fields__,fn({k,v}) -> Enum.member?(old_fields,k) || is_virtual_type(v[:type])  end)
         if Enum.count(new_fields) == 0 do
           false
         else
           alters = fields_to_mysql(new_fields," ",fn(x) -> "ADD #{x[:name]} #{x[:type]} #{x[:opts]}" end)
-          case Exmapper.query("ALTER TABLE #{__name__} #{alters}") do
+          case Exmapper.query("ALTER TABLE #{__name__} #{alters}", [], @repo) do
             {:ok_packet, _, _, _, _, _, _} ->
               true
             error ->
@@ -210,7 +213,7 @@ defmodule Exmapper.Model do
       end
 
       def drop do
-        case Exmapper.query("DROP TABLE #{__name__}") do
+        case Exmapper.query("DROP TABLE #{__name__}", [], @repo) do
           {:ok_packet, _, _, _, _, _, _} -> true
           error ->
             Logger.info inspect error
@@ -242,15 +245,15 @@ defmodule Exmapper.Model do
       end
 
       def all(args \\ []) do
-        Enum.map(Exmapper.all(Atom.to_string(__name__),args) |> Exmapper.to_proplist, fn(x) -> new(x) end)
+        Enum.map(Exmapper.all(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist, fn(x) -> new(x) end)
       end
 
       def count(args \\ []) do
-        elem(List.first(List.first(Exmapper.count(Atom.to_string(__name__),args) |> Exmapper.to_proplist)),1)
+        elem(List.first(List.first(Exmapper.count(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist)),1)
       end
 
       def first(args \\ []) do
-        data = Exmapper.first(Atom.to_string(__name__),args) |> Exmapper.to_proplist
+        data = Exmapper.first(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist
         if Enum.count(data) > 1 do
           Enum.map(data, fn(x) -> new(x) end)
         else
@@ -263,7 +266,7 @@ defmodule Exmapper.Model do
       end
 
       def last(args \\ []) do
-        data = Exmapper.last(Atom.to_string(__name__),args) |> Exmapper.to_proplist
+        data = Exmapper.last(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist
         if Enum.count(data) > 1 do
           Enum.reverse(Enum.map(data, fn(x) -> new(x) end))
         else
@@ -276,7 +279,7 @@ defmodule Exmapper.Model do
       end
 
       def get(id) do
-        data = Exmapper.get(Atom.to_string(__name__),id) |> Exmapper.to_proplist
+        data = Exmapper.get(Atom.to_string(__name__),id,@repo) |> Exmapper.to_proplist
         if Enum.count(data) == 0 do
           nil
         else
@@ -298,7 +301,7 @@ defmodule Exmapper.Model do
                                          end),nil)
           values = Enum.join(List.duplicate(["?"],Enum.count(Keyword.values(args))),",")
           keys = Keyword.keys(args)
-          data = Exmapper.query("INSERT INTO #{__name__} (#{Enum.join(keys,",")}) VALUES (#{values})",Keyword.values(args))
+          data = Exmapper.query("INSERT INTO #{__name__} (#{Enum.join(keys,",")}) VALUES (#{values})",Keyword.values(args),@repo)
           case data do
             {:ok_packet, _, _, id, _, _, _} ->
               data = get(id)
@@ -322,7 +325,7 @@ defmodule Exmapper.Model do
           args = Keyword.delete(args,:id)
           args = Keyword.delete(Enum.map(args,fn({key,val}) -> if !is_virtual_type(__fields__[key][:type]), do: {key,val}, else: nil end),nil)
           keys = Enum.join(Enum.map(args,fn({key,val}) -> "#{key} = ?" end),",")
-          case Exmapper.query("UPDATE #{__name__} SET #{keys} WHERE id = ?",Keyword.values(args)++[id]) do
+          case Exmapper.query("UPDATE #{__name__} SET #{keys} WHERE id = ?",Keyword.values(args)++[id],@repo) do
             {:ok_packet, _, _, _, _, _, _} ->
               data = get(id)
               if __afters__[:update] != nil, do: __afters__[:update].(data)
@@ -341,7 +344,7 @@ defmodule Exmapper.Model do
         if ret == false do
           false
         else
-          case Exmapper.query("DELETE FROM #{__name__} WHERE id = ?",[args[:id]]) do
+          case Exmapper.query("DELETE FROM #{__name__} WHERE id = ?",[args[:id]],@repo) do
             {:ok_packet, _, _, _, _, _, _} ->
               if __afters__[:delete] != nil, do: __afters__[:delete].(new(args))
               true
