@@ -32,8 +32,8 @@ defmodule Exmapper do
                                         end))
   end
 
-  def to_json(result) do
-    :emysql.as_json(result)
+  def to_proplist(result) do
+    :emysql.as_proplist(result)
   end
 
   defp where(keyword \\ []) do

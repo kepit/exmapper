@@ -37,7 +37,7 @@ defmodule Exmapper.Model do
       end
     end
 
-    defmacro table(name,[do: block]) do
+    defmacro schema(name,[do: block]) do
       if is_binary(name), do: name = String.to_atom(name)
       if is_list(name), do: name = List.to_atom(name)
       quote do
@@ -99,6 +99,12 @@ defmodule Exmapper.Model do
                                      true
                                    else
                                      false
+                                   end
+                                 :datetime ->
+                                   if elem(val,0) == :datetime do
+                                     elem(val,1)
+                                   else
+                                     val
                                    end
                                  _ ->
                                    if is_function(val) do
@@ -187,7 +193,7 @@ defmodule Exmapper.Model do
       end
 
       def upgrade do
-        old_fields = Enum.map(Exmapper.query("SHOW COLUMNS FROM #{__name__}") |> Exmapper.to_json, fn(x) -> String.to_atom(elem(List.first(x),1)) end)
+        old_fields = Enum.map(Exmapper.query("SHOW COLUMNS FROM #{__name__}") |> Exmapper.to_proplist, fn(x) -> String.to_atom(elem(List.first(x),1)) end)
         new_fields = Enum.reject(__fields__,fn({k,v}) -> Enum.member?(old_fields,k) || is_virtual_type(v[:type])  end)
         if Enum.count(new_fields) == 0 do
           false
@@ -236,15 +242,15 @@ defmodule Exmapper.Model do
       end
 
       def all(args \\ []) do
-        Enum.map(Exmapper.all(Atom.to_string(__name__),args) |> Exmapper.to_json, fn(x) -> new(x) end)
+        Enum.map(Exmapper.all(Atom.to_string(__name__),args) |> Exmapper.to_proplist, fn(x) -> new(x) end)
       end
 
       def count(args \\ []) do
-        elem(List.first(List.first(Exmapper.count(Atom.to_string(__name__),args) |> Exmapper.to_json)),1)
+        elem(List.first(List.first(Exmapper.count(Atom.to_string(__name__),args) |> Exmapper.to_proplist)),1)
       end
 
       def first(args \\ []) do
-        data = Exmapper.first(Atom.to_string(__name__),args) |> Exmapper.to_json
+        data = Exmapper.first(Atom.to_string(__name__),args) |> Exmapper.to_proplist
         if Enum.count(data) > 1 do
           Enum.map(data, fn(x) -> new(x) end)
         else
@@ -257,7 +263,7 @@ defmodule Exmapper.Model do
       end
 
       def last(args \\ []) do
-        data = Exmapper.last(Atom.to_string(__name__),args) |> Exmapper.to_json
+        data = Exmapper.last(Atom.to_string(__name__),args) |> Exmapper.to_proplist
         if Enum.count(data) > 1 do
           Enum.reverse(Enum.map(data, fn(x) -> new(x) end))
         else
@@ -270,7 +276,7 @@ defmodule Exmapper.Model do
       end
 
       def get(id) do
-        data = Exmapper.get(Atom.to_string(__name__),id) |> Exmapper.to_json
+        data = Exmapper.get(Atom.to_string(__name__),id) |> Exmapper.to_proplist
         if Enum.count(data) == 0 do
           nil
         else
