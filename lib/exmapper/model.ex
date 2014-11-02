@@ -42,6 +42,7 @@ defmodule Exmapper.Model do
       if is_list(name), do: name = List.to_atom(name)
       quote do
         import Field
+        use Timex
 
         @fields []
         @befores [delete: nil, create: nil, update: nil]
@@ -58,7 +59,7 @@ defmodule Exmapper.Model do
           Enum.reduce(Map.to_list(struct), struct, fn({key,val}, acc) ->
                         field = __fields__[key]
                         if field[:type] == :datetime && is_nil(val) do
-                          val = {{0,0,0},{0,0,0}}
+                          val = Timex.Date.from({{0,0,0},{0,0,0}}, :local)
                         end
                         if is_function(val) do
                           Map.put(acc, key, val.())
@@ -86,7 +87,9 @@ defmodule Exmapper.Model do
                                    id = params[field[:opts][:parent_field]]
                                    if id != nil do
                                      mod = field[:opts][:mod]
-                                     (fn() -> mod.get(id) end)
+                                     (fn() ->
+                                        mod.get([id: id])
+                                      end)
                                    else
                                      val
                                    end
@@ -94,7 +97,23 @@ defmodule Exmapper.Model do
                                    if params[:id] != nil do
                                      mod = field[:opts][:mod]
                                      name = Atom.to_string(__name__)
-                                     (fn() -> mod.all(Keyword.new([{:"#{String.slice(name,0,String.length(name)-1)}_id", params[:id]}])) end)
+                                     (fn(args) ->
+                                        if is_list(args) do
+                                          type = Enum.at(args,0)
+                                          args = Enum.drop(args,1) ++ Keyword.new([{:"#{String.slice(name,0,String.length(name)-1)}_id", params[:id]}])
+                                        else
+                                          type = args
+                                          args = Keyword.new([{:"#{String.slice(name,0,String.length(name)-1)}_id", params[:id]}])
+                                        end
+                                        case type do
+                                          :all -> 
+                                            mod.all(args)
+                                          :first -> 
+                                            mod.first(args)
+                                          :last ->
+                                            mod.last(args)
+                                        end
+                                      end)
                                    else
                                      val
                                    end
@@ -109,7 +128,7 @@ defmodule Exmapper.Model do
                                      elem(val,1)
                                    else
                                      if is_nil(val) do
-                                       {{0,0,0},{0,0,0}}
+                                      Timex.Date.from({{0,0,0},{0,0,0}}, :local)
                                      else
                                        val
                                      end
@@ -303,10 +322,10 @@ defmodule Exmapper.Model do
           false
         else
           if args[:id] == nil, do: args = Keyword.delete(args,:id)
-          args = Keyword.delete(Enum.map(args,fn({key,val}) ->
+          args = Enum.reject(Enum.map(args,fn({key,val}) ->
                                            if __fields__[key][:opts][:required] == true && val == nil, do: raise("Field #{key} is required!")
                                            if !is_virtual_type(__fields__[key][:type]), do: {key,val}, else: nil
-                                         end),nil)
+                                         end),fn(x) -> is_nil(x) end)
           values = Enum.join(List.duplicate(["?"],Enum.count(Keyword.values(args))),",")
           keys = Keyword.keys(args)
           data = Exmapper.query("INSERT INTO #{__name__} (#{Enum.join(keys,",")}) VALUES (#{values})",Keyword.values(args),@repo)
