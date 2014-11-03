@@ -89,7 +89,7 @@ defmodule Exmapper.Model do
                                    if id != nil do
                                      mod = field[:opts][:mod]
                                      (fn() ->
-                                        mod.get([id: id])
+                                        mod.get(id)
                                       end)
                                    else
                                      val
