@@ -9,12 +9,12 @@ defmodule Exmapper.Model do
           Module.put_attribute(__MODULE__,:fields,fields++Keyword.new([{unquote(name), [name: unquote(name), type: unquote(type), opts: unquote(opts)]}]))
         end
       end
-      defmacro before_to(cmd,fun) do
+      defmacro before(cmd,fun) do
         quote do
           Module.put_attribute(__MODULE__,:befores,Keyword.put(Module.get_attribute(__MODULE__,:befores),:"#{unquote(cmd)}",unquote(fun)))
         end
       end
-      defmacro after_to(cmd,fun) do
+      defmacro after(cmd,fun) do
         quote do
           Module.put_attribute(__MODULE__,:afters,Keyword.put(Module.get_attribute(__MODULE__,:afters),:"#{unquote(cmd)}",unquote(fun)))
         end
