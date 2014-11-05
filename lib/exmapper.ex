@@ -20,59 +20,40 @@ defmodule Exmapper do
     Logger.debug(query)
     :emysql.prepare(:q, query)
     :emysql.execute(pool, :q, Enum.map(args,fn(x) ->
-                                          cond do
-                                            is_boolean(x) ->
-                                              if x == true do
-                                                1
-                                              else
-                                                0
-                                              end
-                                            true ->
-                                              x
-                                          end
+                                         Exmapper.Field.Transform.encode(x)
                                         end))
   end
 
   def to_proplist(result) do
     :emysql.as_proplist(result)
   end
+m
+  defp where_transform("in", value), do: ["IN","(" <> Enum.join(Enum.map(value, fn(v) -> "?" end),",") <> ")", value]
+  defp where_transform("gt", value), do: [">","?", value]
+  defp where_transform("gte", value), do: [">=","?", value]
+  defp where_transform("lt", value), do: ["<","?", value]
+  defp where_transform("lte", value), do: ["<=","?", value]
+  defp where_transform("like", value), do: ["LIKE","?", value]
+  defp where_transform(_, value), do: ["=","?", value]
 
   defp where(keyword \\ []) do
-    Enum.join(Enum.map(keyword, fn({key,value}) ->
-                         mark = "="
-                         key = Atom.to_string(key)
-                         case List.last(String.split(key,".")) do
-                           "gt" ->
-                             mark = ">"
-                           "gte" ->
-                             mark = ">="
-                           "lt" ->
-                             mark = "<"
-                           "lte" ->
-                             mark = "<="
-                           "like" -> 
-                             mark = "LIKE"
-                           "in" ->
-                             mark = "IN"
-                           _ ->
-                             mark = "="
-                         end
-                         key = String.replace(key,~r/.gte|.gt|.lte|.lt|.like|.in/,"")
-                         val = "?"
-                         if mark == "IN" do
-                           questions = Enum.join(Enum.map(value, fn(v) -> "?" end),",")
-                           val = "(#{questions})"
-                         end
-                         "#{key} #{mark} #{val}" #"?"
-                       end)," AND ")
+    if Enum.count(keyword) > 0 do
+      ret = Enum.map(keyword, fn({key,value}) ->
+                 mark = "="
+                 key = Atom.to_string(key)
+                 oper = List.last(String.split(key,"."))
+                 key = String.replace(key, ".#{oper}","") # Fixme: regexp end
+                 [mar, qm, value] = where_transform(oper, value)
+                 "#{key} #{mark} #{qm}"
+               end) |> Enum.join(" AND ")
+      "WHERE #{ret}"
+    else
+      ""
+    end
   end
 
   def count(table, args \\ [], pool \\ :default) do
-    where = ""
-    if Enum.count(args) > 0 do
-      where = "WHERE #{where(args)} "
-    end
-    query("SELECT COUNT(*) FROM #{table} #{where}",Keyword.values(args),pool)
+    query("SELECT COUNT(*) FROM #{table} #{where(args)}",Keyword.values(args),pool)
   end
 
   def all(table, args \\ [], pool \\ :default), do: all_first_last(table,args,pool,"id ASC")
@@ -80,20 +61,19 @@ defmodule Exmapper do
   def last(table, args \\ [], pool \\ :defaut), do: all_first_last(table,Keyword.merge([limit: 1],args),pool,"id DESC")
 
   defp all_first_last(table,args,pool,order_by) do
-    where = ""
     limit = ""
+
     if Keyword.has_key?(args,:limit) do
       if is_integer(args[:limit]), do: limit = "LIMIT #{args[:limit]}"
       args = Keyword.delete(args,:limit)
     end
+
     if Keyword.has_key?(args,:order_by) do
       if args[:order_by] != "" && is_binary(args[:order_by]), do: order_by = args[:order_by]
       args = Keyword.delete(args,:order_by)
     end
-    if Enum.count(args) > 0 do
-      where = "WHERE #{where(args)} "
-    end
-    query("SELECT * FROM #{table} #{where}ORDER BY #{order_by} #{limit}",List.flatten(Keyword.values(args)),pool)
+
+    query("SELECT * FROM #{table} #{where(args)} ORDER BY #{order_by} #{limit}",List.flatten(Keyword.values(args)),pool)
   end
 
   def get(table, id, pool \\ :default) do

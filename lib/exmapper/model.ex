@@ -13,11 +13,11 @@ defmodule Exmapper.Model do
     end
 
     defmacro before_create(fun), do: quote do: before_callback(:create, unquote(fun))
-    defmacro before_delete(fun), do: quote do: before_callback(:create, unquote(fun))
-    defmacro before_update(fun), do: quote do: before_callback(:create, unquote(fun))
-    defmacro after_create(fun), do: quote do: before_callback(:create, unquote(fun))
-    defmacro after_delete(fun), do: quote do: before_callback(:create, unquote(fun))
-    defmacro after_update(fun), do: quote do: before_callback(:create, unquote(fun))
+    defmacro before_delete(fun), do: quote do: before_callback(:delete, unquote(fun))
+    defmacro before_update(fun), do: quote do: before_callback(:update, unquote(fun))
+    defmacro after_create(fun), do: quote do: after_callback(:create, unquote(fun))
+    defmacro after_delete(fun), do: quote do: after_callback(:delete, unquote(fun))
+    defmacro after_update(fun), do: quote do: after_callback(:update, unquote(fun))
 
 
     defmacro schema(name,[do: block]) do
@@ -93,6 +93,21 @@ defmodule Exmapper.Model do
       unless is_nil(unquote(opts)[:repo]), do: repo = unquote(opts)[:repo]
       @repo repo
       @field_types [string: "VARCHAR(255)", integer: "INT", text: "TEXT", float: "FLOAT", double: "DOUBLE", boolean: "TINYINT(1)", datetime: "DATETIME"]
+
+
+      def run_callbacks(callbacks, type, args) do
+        if callbacks[type] != nil do 
+          cb = callbacks[type]
+          if is_atom(cb) do
+            :erlang.apply(cb, args)
+          else
+            callbacks[type].(args)
+          end
+        else
+          true
+        end
+      end
+
 
       defp fields_to_mysql(collection,joiner,fun) do
         Enum.join(Enum.reject(Enum.map(collection,fn({key,val}) ->
@@ -202,18 +217,6 @@ defmodule Exmapper.Model do
         end
       end
 
-      def run_callbacks(callbacks, type, args) do
-        if callbacks[type] != nil do 
-          cb = callbacks[type]
-          if is_atom(cb) do
-            :erlang.apply(cb, args)
-          else
-            callbacks[type].(args)
-          end
-        else
-          true
-        end
-      end
 
       def create(args) when is_map(args) do create(to_keywords(args)) end
       def create(args) when is_list(args) do
@@ -234,6 +237,7 @@ defmodule Exmapper.Model do
                                              nil
                                            end
                                          end),fn(x) -> is_nil(x) end)
+
           values = Enum.join(List.duplicate(["?"],Enum.count(Keyword.values(args))),",")
           keys = Keyword.keys(args)
           data = Exmapper.query("INSERT INTO #{__name__} (#{Enum.join(keys,",")}) VALUES (#{values})",Keyword.values(args),@repo)
@@ -269,6 +273,7 @@ defmodule Exmapper.Model do
                                            end
                                          end),nil)
           keys = Enum.join(Enum.map(args,fn({key,val}) -> "#{key} = ?" end),",")
+
           case Exmapper.query("UPDATE #{__name__} SET #{keys} WHERE id = ?",Keyword.values(args)++[id],@repo) do
             {:ok_packet, _, _, _, _, _, _} ->
               data = get(id)
