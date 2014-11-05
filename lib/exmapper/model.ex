@@ -1,42 +1,15 @@
 defmodule Exmapper.Model do
-
+  require Exmapper.Field
+  
   defmodule Table do
-    defmodule Field do
 
-      defmacro field(name,type \\ :string,opts \\ []) do
-        quote do
-          fields = Module.get_attribute(__MODULE__,:fields)
-          Module.put_attribute(__MODULE__,:fields,fields++Keyword.new([{unquote(name), [name: unquote(name), type: unquote(type), opts: unquote(opts)]}]))
-        end
-      end
-      defmacro belongs_to(name,mod,opts \\ []) do
-        quote do
-          parent_field = :"#{unquote(name)}_id"
-          fields = Module.get_attribute(__MODULE__,:fields)
-          field = Keyword.new([{parent_field, [name: parent_field, type: :integer, opts: [foreign_key: true, mod: unquote(mod), required: true]]}])
-          virt = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :belongs_to, opts: unquote(opts) ++ [parent_field: parent_field, mod: unquote(mod)]]}])
-          Module.put_attribute(__MODULE__,:fields,fields++field++virt)
-        end
-      end
-      defmacro has_many(name,mod, opts \\ []) do
-        quote do
-          foreign_key = unquote(opts[:foreign_key]) || Exmapper.module_to_id(__MODULE__)
-          fields = Module.get_attribute(__MODULE__,:fields)
-          field = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :has_many, opts: unquote(opts) ++ [foreign_key: foreign_key, mod: unquote(mod)]]}])
-          Module.put_attribute(__MODULE__,:fields,fields++field)
-        end               
-      end
-    end
+    alias Exmapper.Field
 
     defmacro before_callback(cmd,fun) do
-      quote do
-        Module.put_attribute(__MODULE__,:befores,Keyword.put(Module.get_attribute(__MODULE__,:befores),:"#{unquote(cmd)}",unquote(fun)))
-      end
+      quote do: Module.put_attribute(__MODULE__,:befores,Keyword.put(Module.get_attribute(__MODULE__,:befores),:"#{unquote(cmd)}",unquote(fun)))
     end
     defmacro after_callback(cmd,fun) do
-      quote do
-        Module.put_attribute(__MODULE__,:afters,Keyword.put(Module.get_attribute(__MODULE__,:afters),:"#{unquote(cmd)}",unquote(fun)))
-      end
+      quote do: Module.put_attribute(__MODULE__,:afters,Keyword.put(Module.get_attribute(__MODULE__,:afters),:"#{unquote(cmd)}",unquote(fun)))
     end
 
     defmacro before_create(fun), do: quote do: before_callback(:create, unquote(fun))
@@ -48,10 +21,12 @@ defmodule Exmapper.Model do
 
 
     defmacro schema(name,[do: block]) do
+
       if is_binary(name), do: name = String.to_atom(name)
       if is_list(name), do: name = List.to_atom(name)
+
       quote do
-        import Field
+        import Exmapper.Field
         use Timex
 
         @fields []
@@ -79,6 +54,7 @@ defmodule Exmapper.Model do
                       end)
         end
 
+
         def new(params) do
           struct = %__MODULE__{}
           params = Enum.map(params,fn({k,v}) ->
@@ -89,81 +65,12 @@ defmodule Exmapper.Model do
                               end
                             end)
           rec = Map.to_list(struct)
-          Enum.reduce(rec, struct, fn({key,val}, acc) ->
-                        field = __fields__[key]
-                        unless is_nil(params[key]), do: val = params[key]
-                        data = case field[:type] do
-                                 :belongs_to ->
-                                   id = params[field[:opts][:parent_field]]
-                                   if id != nil do
-                                     mod = field[:opts][:mod]
-                                     (fn() ->
-                                        mod.get(id)
-                                      end)
-                                   else
-                                     val
-                                   end
-                                 :has_many ->
-                                   if params[:id] != nil do
-                                     mod = field[:opts][:mod]
-                                     through = field[:opts][:through]
-                                     foreign_key = field[:opts][:foreign_key]
-                                     (fn(args) ->
-                                        query = Keyword.new([{foreign_key, params[:id]}])
-                                        if through != nil do
-                                          assoc_args = query |>
-                                            Keyword.put(:order_by, Atom.to_string(foreign_key))
-                                          assoc = through.all(assoc_args)
-                                          assoc_mod_id = Exmapper.module_to_id(mod)
-                                          ids = Enum.map assoc, fn(a) ->
-                                            Map.get(a,assoc_mod_id)
-                                          end
-                                          query = Keyword.new([{String.to_atom("id.in"), ids}])
-                                        end
-                                        if is_list(args) do
-                                          type = Enum.at(args,0)
-                                          args = Enum.drop(args,1) ++ query
-                                        else
-                                          type = args
-                                          args = query
-                                        end
-                                        case type do
-                                          :all -> 
-                                            mod.all(args)
-                                          :first -> 
-                                            mod.first(args)
-                                          :last ->
-                                            mod.last(args)
-                                        end
-                                      end)
-                                   else
-                                     val
-                                   end
-                                 :boolean ->
-                                   if val == 1 do
-                                     true
-                                   else
-                                     false
-                                   end
-                                 :datetime ->
-                                   if is_tuple(val) && elem(val,0) == :datetime do
-                                     Timex.Date.from(elem(val,1),:local)
-                                   else
-                                     if is_nil(val) do
-                                      Timex.Date.from({{0,0,0},{0,0,0}}, :local)
-                                     else
-                                       val
-                                     end
-                                   end
-                                 _ ->
-                                   if is_function(val) do
-                                     val.()
-                                   else
-                                     val
-                                   end
-                               end
-                        Map.put(acc,key,data)
-                      end)
+          Enum.reduce rec, struct, fn({key,val}, acc) ->
+            field = __fields__[key]
+            unless is_nil(params[key]), do: val = params[key]
+            data = Field.Transform.decode(field[:type], params, field, key, val)
+            Map.put(acc,key,data)
+          end
         end
 
         def __befores__, do: @befores
@@ -271,6 +178,8 @@ defmodule Exmapper.Model do
       end
 
       def to_keywords(value), do: Exmapper.to_keywords(value)
+
+
       def all(args \\ []), do: Enum.map(Exmapper.all(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist, fn(x) -> new(x) end)
       def count(args \\ []), do: elem(List.first(List.first(Exmapper.count(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist)),1)
       def first(args \\ []), do: first_last_get(Exmapper.first(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist)
