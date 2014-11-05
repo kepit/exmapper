@@ -16,8 +16,8 @@ defmodule Model do
     field :name, :string
 
     has_many :other_models, OtherModel, through: ModelOtherModel, foreigh_key: :key_id
-    before_to :delete, &Model.before_delete/1
-    after_to :delete, &Model.after_delete/1
+    before_delete, :before_delete
+    after_delete, &Model.after_delete/1
   end
 
   def before_delete(data) do
