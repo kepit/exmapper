@@ -43,6 +43,9 @@ Model.all("id.gte": 1) # Greater than 1
 Model.all(limit: 2) # LIMIT 2
 Model.all(order_by: "id DESC") # ORDER BY id DESC
 
+Model.first().assoc.(:all, name: "test")
+Model.first().assoc.(:first, name: "test")
+
 Model.first()
 Model.last()
 Model.get([id])
