@@ -17,17 +17,23 @@ defmodule Exmapper do
   end
 
   def query(query, args \\ [], pool \\ :default) do
-    Logger.debug(query)
+    before_time = :os.timestamp()
     :emysql.prepare(:q, query)
-    :emysql.execute(pool, :q, Enum.map(args,fn(x) ->
+    ret = :emysql.execute(pool, :q, Enum.map(args,fn(x) ->
                                          Exmapper.Field.Transform.encode(x)
                                         end))
+    after_time = :os.timestamp()
+    diff = :timer.now_diff(after_time, before_time)
+    Logger.debug fn -> 
+      "[#{diff/1000}ms] #{query}"
+    end
+    ret
   end
 
   def to_proplist(result) do
     :emysql.as_proplist(result)
   end
-m
+
   defp where_transform("in", value), do: ["IN","(" <> Enum.join(Enum.map(value, fn(v) -> "?" end),",") <> ")", value]
   defp where_transform("gt", value), do: [">","?", value]
   defp where_transform("gte", value), do: [">=","?", value]
@@ -43,7 +49,7 @@ m
                  key = Atom.to_string(key)
                  oper = List.last(String.split(key,"."))
                  key = String.replace(key, ".#{oper}","") # Fixme: regexp end
-                 [mar, qm, value] = where_transform(oper, value)
+                 [mark, qm, value] = where_transform(oper, value)
                  "#{key} #{mark} #{qm}"
                end) |> Enum.join(" AND ")
       "WHERE #{ret}"
@@ -52,33 +58,33 @@ m
     end
   end
 
-  def count(table, args \\ [], pool \\ :default) do
-    query("SELECT COUNT(*) FROM #{table} #{where(args)}",Keyword.values(args),pool)
-  end
+  def count(table, args \\ [], pool \\ :default), do: select("COUNT(*)",table, args, pool)
+  def all(table, args \\ [], pool \\ :default), do: select("*",table,args,pool,"id ASC")
+  def first(table, args \\ [], pool \\ :defaut), do: select("*", table,Keyword.merge([limit: 1],args),pool,"id ASC")
+  def last(table, args \\ [], pool \\ :defaut), do: select("*", table,Keyword.merge([limit: 1],args),pool,"id DESC")
+  def get(table, id, pool \\ :default), do: select("*", table, [id: id], pool)
 
-  def all(table, args \\ [], pool \\ :default), do: all_first_last(table,args,pool,"id ASC")
-  def first(table, args \\ [], pool \\ :defaut), do: all_first_last(table,Keyword.merge([limit: 1],args),pool,"id ASC")
-  def last(table, args \\ [], pool \\ :defaut), do: all_first_last(table,Keyword.merge([limit: 1],args),pool,"id DESC")
 
-  defp all_first_last(table,args,pool,order_by) do
+  defp select(what, table, args, pool, order_by \\ "") do
     limit = ""
+
+    if what == "", do: what = "*"
 
     if Keyword.has_key?(args,:limit) do
       if is_integer(args[:limit]), do: limit = "LIMIT #{args[:limit]}"
       args = Keyword.delete(args,:limit)
     end
 
+    if order_by != "", do: order_by = "ORDER BY " <> order_by
+
     if Keyword.has_key?(args,:order_by) do
-      if args[:order_by] != "" && is_binary(args[:order_by]), do: order_by = args[:order_by]
+      if args[:order_by] != "" && is_binary(args[:order_by]), do: order_by = "ORDER BY " <> args[:order_by]
       args = Keyword.delete(args,:order_by)
     end
 
-    query("SELECT * FROM #{table} #{where(args)} ORDER BY #{order_by} #{limit}",List.flatten(Keyword.values(args)),pool)
+    query("SELECT #{what} FROM #{table} #{where(args)} #{order_by} #{limit}",List.flatten(Keyword.values(args)),pool)
   end
 
-  def get(table, id, pool \\ :default) do
-    query("SELECT * FROM #{table} WHERE id = ? LIMIT 1",[id],pool)
-  end
 
   def to_keywords(value) do
     if value == nil do
