@@ -47,8 +47,6 @@ defmodule Exmapper.Model do
     defmacro after_update(fun), do: quote do: before_callback(:create, unquote(fun))
 
 
-
-
     defmacro schema(name,[do: block]) do
       if is_binary(name), do: name = String.to_atom(name)
       if is_list(name), do: name = List.to_atom(name)
@@ -295,10 +293,22 @@ defmodule Exmapper.Model do
         end
       end
 
+      def run_callbacks(callbacks, type, args) do
+        if callbacks[type] != nil do 
+          cb = callbacks[type]
+          if is_atom(cb) do
+            :erlang.apply(cb, args)
+          else
+            callbacks[type].(args)
+          end
+        else
+          true
+        end
+      end
+
       def create(args) when is_map(args) do create(to_keywords(args)) end
       def create(args) when is_list(args) do
-        ret = true
-        if __befores__[:create] != nil, do: ret = __befores__[:create].(new(args))
+        ret = run_callbacks(__befores__, :create, new(args))
         if ret == false do
           false
         else
@@ -321,7 +331,7 @@ defmodule Exmapper.Model do
           case data do
             {:ok_packet, _, _, id, _, _, _} ->
               data = get(id)
-              if __afters__[:create] != nil, do: __afters__[:create].(data)
+              run_callbacks(__afters__, :create, data)
               {true, data}
             error ->
               Logger.info inspect error
@@ -332,8 +342,7 @@ defmodule Exmapper.Model do
 
       def update(args) when is_map(args) do update(to_keywords(args)) end
       def update(args) when is_list(args) do
-        ret = true
-        if __befores__[:update] != nil, do: ret = __befores__[:update].(get(args[:id]))
+        ret = run_callbacks(__befores__, :update, get(args[:id]))
         if ret == false do
           false
         else
@@ -354,7 +363,7 @@ defmodule Exmapper.Model do
           case Exmapper.query("UPDATE #{__name__} SET #{keys} WHERE id = ?",Keyword.values(args)++[id],@repo) do
             {:ok_packet, _, _, _, _, _, _} ->
               data = get(id)
-              if __afters__[:update] != nil, do: __afters__[:update].(data)
+              run_callbacks(__afters__,:update, data)
               {true,data}
             error ->
               Logger.info inspect error
@@ -365,14 +374,13 @@ defmodule Exmapper.Model do
 
       def delete(args) when is_map(args) do delete(to_keywords(args)) end
       def delete(args) when is_list(args) do
-        ret = true
-        if __befores__[:delete] != nil, do: ret = __befores__[:delete].(get(args[:id]))
+        ret = run_callbacks(__befores__, :delete, get(args[:id]))
         if ret == false do
           false
         else
           case Exmapper.query("DELETE FROM #{__name__} WHERE id = ?",[args[:id]],@repo) do
             {:ok_packet, _, _, _, _, _, _} ->
-              if __afters__[:delete] != nil, do: __afters__[:delete].(new(args))
+              run_callbacks(__afters__, :delete, new(args))
               true
             error ->
               Logger.info inspect error
