@@ -65,19 +65,20 @@ defmodule Exmapper.Model do
                               end
                             end)
           rec = Map.to_list(struct)
+
           Enum.reduce rec, struct, fn({key,val}, acc) ->
             field = __fields__[key]
             unless is_nil(params[key]), do: val = params[key]
             data = Field.Transform.decode(field[:type], params, field, key, val)
             Map.put(acc,key,data)
           end
+
         end
 
         def __befores__, do: @befores
         def __afters__, do: @afters
         def __name__, do: @name
         def __fields__, do: @fields
-        def is_virtual_type(type), do: (Enum.find([:virtual, :belongs_to, :has_many],fn(x) -> x == type end) != nil) 
       end
     end
   end
@@ -107,95 +108,11 @@ defmodule Exmapper.Model do
         end
       end
 
-
-      @field_types [string: "VARCHAR(255)", integer: "INT", text: "TEXT", float: "FLOAT", double: "DOUBLE", boolean: "TINYINT(1)", datetime: "DATETIME"]
-
-
-      defp fields_to_mysql(collection,joiner,fun) do
-        Enum.join(Enum.reject(Enum.map(collection,fn({key,val}) ->
-                                         if !is_virtual_type(val[:type]) do
-                                           default = ""
-                                           primary_key = ""
-                                           auto_increment = ""
-                                           not_null = "NULL "
-                                           if val[:opts][:primary_key] == true, do: primary_key = "PRIMARY KEY"
-                                           if val[:opts][:required] == true, do: not_null = "NOT NULL "
-                                           if val[:opts][:auto_increment] == true, do: auto_increment = "AUTO_INCREMENT "
-                                           if val[:opts][:default] != nil && !is_function(val[:opts][:default]), do: default = "DEFAULT #{val[:opts][:default]} "
-                                           type = @field_types[val[:type]]
-                                           if type == nil, do: type = @field_types[:string]
-                                           cond do
-                                             val[:type] == :string ->
-                                               if val[:opts][:default] != nil, do: default = "DEFAULT '#{val[:opts][:default]}'"
-                                             val[:type] == :text ->
-                                               if val[:opts][:default] != nil, do: default = ""
-                                             true -> nil
-                                           end
-                                           fun.([name: key, type: type, opts: "#{not_null}#{default}#{auto_increment}#{primary_key}"])
-                                         else
-                                           nil
-                                         end
-                                       end), &(is_nil(&1))),joiner)
-      end
-
-      def migrate do
-        fields = fields_to_mysql(__fields__,", ",fn(x) -> "#{x[:name]} #{x[:type]} #{x[:opts]}" end)
-        case Exmapper.query("CREATE TABLE #{__name__}(#{fields})", [], @repo) do
-          {:ok_packet, _, _, _, _, _, _} ->
-            alter = Enum.join(List.delete(Enum.map(__fields__,fn({key,val}) ->
-                                                     if val[:opts][:foreign_key] == true do
-                                                       mod = val[:opts][:mod]
-                                                       table = mod.__name__
-                                                       "ADD CONSTRAINT #{__name__}_to_#{table} FOREIGN KEY (#{key}) REFERENCES #{table} (id) ON UPDATE CASCADE ON DELETE CASCADE"
-                                                     else
-                                                       nil
-                                                     end
-                                                   end),nil)," ")
-            if alter == "" do
-              true
-            else
-              case Exmapper.query("ALTER TABLE #{__name__} #{alter}", [], @repo) do
-                {:ok_packet, _, _, _, _, _, _} ->
-                  true
-                error ->
-                  Logger.info inspect error
-                  false
-              end
-            end
-          error ->
-            Logger.info inspect error
-            false
-        end
-      end
-
-      def upgrade do
-        old_fields = Enum.map(Exmapper.query("SHOW COLUMNS FROM #{__name__}", [], @repo) |> Exmapper.to_proplist, fn(x) -> String.to_atom(elem(List.first(x),1)) end)
-        new_fields = Enum.reject(__fields__,fn({k,v}) -> Enum.member?(old_fields,k) || is_virtual_type(v[:type])  end)
-        if Enum.count(new_fields) == 0 do
-          false
-        else
-          alters = fields_to_mysql(new_fields," ",fn(x) -> "ADD #{x[:name]} #{x[:type]} #{x[:opts]}" end)
-          case Exmapper.query("ALTER TABLE #{__name__} #{alters}", [], @repo) do
-            {:ok_packet, _, _, _, _, _, _} ->
-              true
-            error ->
-              Logger.info inspect error
-              false
-          end 
-        end
-      end
-
-      def drop do
-        case Exmapper.query("DROP TABLE #{__name__}", [], @repo) do
-          {:ok_packet, _, _, _, _, _, _} -> true
-          error ->
-            Logger.info inspect error
-            false
-        end
-      end
+      def migrate, do: Exmapper.Migration.migrate(__MODULE__)
+      def upgrade, do: Exmapper.Migration.upgrade(__MODULE__)
+      def drop, do: Exmapper.Migration.drop(__MODULE__)
 
       def to_keywords(value), do: Exmapper.to_keywords(value)
-
 
       def all(args \\ []), do: Enum.map(Exmapper.all(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist, fn(x) -> new(x) end)
       def count(args \\ []), do: elem(List.first(List.first(Exmapper.count(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist)),1)
@@ -229,7 +146,7 @@ defmodule Exmapper.Model do
           if args[:id] == nil, do: args = Keyword.delete(args,:id)
           args = Enum.reject(Enum.map(args,fn({key,val}) ->
                                            if __fields__[key][:opts][:required] == true && val == nil, do: raise("Field #{key} is required!")
-                                           if !is_virtual_type(__fields__[key][:type]) do
+                                           if !Exmapper.is_virtual_type(__fields__[key][:type]) do
                                              if __fields__[key][:type] == :datetime do
                                                {key, {{val[:year],val[:month],val[:day]},{val[:hour],val[:minute],val[:second]}}}
                                              else
@@ -264,7 +181,7 @@ defmodule Exmapper.Model do
           id = args[:id]
           args = Keyword.delete(args,:id)
           args = Keyword.delete(Enum.map(args,fn({key,val}) ->
-                                           if !is_virtual_type(__fields__[key][:type]) do
+                                           if !Exmapper.is_virtual_type(__fields__[key][:type]) do
                                              if __fields__[key][:type] == :datetime do
                                                {key, {{val[:year],val[:month],val[:day]},{val[:hour],val[:minute],val[:second]}}}
                                              else
@@ -288,6 +205,7 @@ defmodule Exmapper.Model do
         end
       end
 
+      # Fixme: use where builder from Exmapper
       def delete(args) when is_map(args) do delete(to_keywords(args)) end
       def delete(args) when is_list(args) do
         ret = run_callbacks(__befores__, :delete, get(args[:id]))
