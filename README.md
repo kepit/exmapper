@@ -5,7 +5,7 @@ Elixir database wrapper
 
 ### Connect
 ```
-Exmapper.connect(username: "[username]", password: "[password]", database: "[database]", repo: [:repository_name], pool_size: 1, encoding: :utf8)
+Exmapper.connect(username: "username", password: "password", database: "database", repo: :repository_name, pool_size: 1, encoding: :utf8)
 ```
 
 ### Model
@@ -16,9 +16,10 @@ defmodule Model do
     field :name, :string
 
     has_many :other_models, OtherModel, through: ModelOtherModel, foreigh_key: :key_id
-    before_delete, :before_delete
-    after_delete, &Model.after_delete/1
   end
+  
+  before_delete, :before_delete
+  after_delete, &Model.after_delete/1
 
   def before_delete(data) do
     Logger.warn inspect data
@@ -43,6 +44,9 @@ Model.all("id.gte": 1) # Greater than 1
 Model.all(limit: 2) # LIMIT 2
 Model.all(order_by: "id DESC") # ORDER BY id DESC
 
+Model.first().assoc.(:all, name: "test")
+Model.first().assoc.(:first, name: "test")
+
 Model.first()
 Model.last()
 Model.get([id])
@@ -52,3 +56,6 @@ Model.create(Model.new)
 Model.delete(Model.first)
 
 ```
+
+### Todo
+ - created_at and updated_at automation with callbacks
