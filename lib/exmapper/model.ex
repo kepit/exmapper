@@ -11,14 +11,13 @@ defmodule Exmapper.Model do
     defmacro after_callback(cmd,fun) do
       quote do: Module.put_attribute(__MODULE__,:afters,Keyword.put(Module.get_attribute(__MODULE__,:afters),:"#{unquote(cmd)}",unquote(fun)))
     end
-
+      
     defmacro before_create(fun), do: quote do: before_callback(:create, unquote(fun))
     defmacro before_delete(fun), do: quote do: before_callback(:delete, unquote(fun))
     defmacro before_update(fun), do: quote do: before_callback(:update, unquote(fun))
     defmacro after_create(fun), do: quote do: after_callback(:create, unquote(fun))
     defmacro after_delete(fun), do: quote do: after_callback(:delete, unquote(fun))
     defmacro after_update(fun), do: quote do: after_callback(:update, unquote(fun))
-
 
     defmacro schema(name,[do: block]) do
 
@@ -75,6 +74,9 @@ defmodule Exmapper.Model do
 
         end
 
+
+     
+
         def __befores__, do: @befores
         def __afters__, do: @afters
         def __name__, do: @name
@@ -94,6 +96,9 @@ defmodule Exmapper.Model do
       unless is_nil(unquote(opts)[:repo]), do: repo = unquote(opts)[:repo]
       @repo repo
 
+      def repo do
+        @repo
+      end
 
       def run_callbacks(callbacks, type, args) do
         if callbacks[type] != nil do 
