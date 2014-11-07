@@ -104,7 +104,7 @@ defmodule Exmapper.Model do
         if callbacks[type] != nil do 
           cb = callbacks[type]
           if is_atom(cb) do
-            :erlang.apply(cb, args)
+            apply(__MODULE__, cb, [args])
           else
             callbacks[type].(args)
           end
@@ -144,7 +144,7 @@ defmodule Exmapper.Model do
 
       def create(args) when is_map(args) do create(to_keywords(args)) end
       def create(args) when is_list(args) do
-        ret = run_callbacks(__befores__, :create, new(args))
+        ret = run_callbacks(__MODULE__.__befores__, :create, new(args))
         if ret == false do
           false
         else
@@ -168,7 +168,7 @@ defmodule Exmapper.Model do
           case data do
             {:ok_packet, _, _, id, _, _, _} ->
               data = get(id)
-              run_callbacks(__afters__, :create, data)
+              run_callbacks(__MODULE__.__afters__, :create, data)
               {true, data}
             error ->
               Logger.info inspect error
@@ -179,7 +179,7 @@ defmodule Exmapper.Model do
 
       def update(args) when is_map(args) do update(to_keywords(args)) end
       def update(args) when is_list(args) do
-        ret = run_callbacks(__befores__, :update, get(args[:id]))
+        ret = run_callbacks(__MODULE__.__befores__, :update, get(args[:id]))
         if ret == false do
           false
         else
@@ -201,7 +201,7 @@ defmodule Exmapper.Model do
           case Exmapper.query("UPDATE #{__name__} SET #{keys} WHERE id = ?",Keyword.values(args)++[id],@repo) do
             {:ok_packet, _, _, _, _, _, _} ->
               data = get(id)
-              run_callbacks(__afters__,:update, data)
+              run_callbacks(__MODULE__.__afters__,:update, data)
               {true,data}
             error ->
               Logger.info inspect error
@@ -213,13 +213,13 @@ defmodule Exmapper.Model do
       # Fixme: use where builder from Exmapper
       def delete(args) when is_map(args) do delete(to_keywords(args)) end
       def delete(args) when is_list(args) do
-        ret = run_callbacks(__befores__, :delete, get(args[:id]))
+        ret = run_callbacks(__MODULE__.__befores__, :delete, get(args[:id]))
         if ret == false do
           false
         else
           case Exmapper.query("DELETE FROM #{__name__} WHERE id = ?",[args[:id]],@repo) do
             {:ok_packet, _, _, _, _, _, _} ->
-              run_callbacks(__afters__, :delete, new(args))
+              run_callbacks(__MODULE__.__afters__, :delete, new(args))
               true
             error ->
               Logger.info inspect error
