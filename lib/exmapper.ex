@@ -18,8 +18,7 @@ defmodule Exmapper do
 
   def query(query, args \\ [], pool \\ :default) do
     before_time = :os.timestamp()
-    :emysql.prepare(:q, query)
-    ret = :emysql.execute(pool, :q, Enum.map(args,fn(x) ->
+    ret = :emysql.execute(pool, query, Enum.map(args,fn(x) ->
                                          Exmapper.Field.Transform.encode(x)
                                         end))
     after_time = :os.timestamp()
