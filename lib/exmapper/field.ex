@@ -1,9 +1,11 @@
 defmodule Exmapper.Field do
-  
+
   defmacro field(name,type \\ :string,opts \\ []) do
     quote do
       fields = Module.get_attribute(__MODULE__,:fields)
-      Module.put_attribute(__MODULE__,:fields,fields++Keyword.new([{unquote(name), [name: unquote(name), type: unquote(type), opts: unquote(opts)]}]))
+      field = Keyword.new([{unquote(name), [name: unquote(name), type: unquote(type), opts: unquote(opts)]}])
+      setter_field = Keyword.new([{:"#{unquote(name)}!", [name: unquote(name), type: :setter, opts: [mod: __MODULE__]]}])
+      Module.put_attribute(__MODULE__,:fields,fields++field++setter_field)
     end
   end
   
@@ -39,6 +41,17 @@ defmodule Exmapper.Field do
 
     def encode(val) do
       val
+    end
+
+    def decode(:setter, params, field, key, val) do
+      fn(new_val) ->
+        mod = field[:opts][:mod]
+        if is_nil(params[:id]) do
+          mod.new(Keyword.put(params, field[:name], new_val))
+        else
+          mod.update(mod.new(Keyword.put(params, field[:name], new_val)))
+        end
+      end
     end
 
     def decode(:belongs_to, params, field, key, val) do

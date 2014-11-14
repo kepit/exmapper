@@ -112,6 +112,6 @@ defmodule Exmapper do
     String.to_atom((module |> Module.split |> List.last |> Mix.Utils.underscore) <> "_id")
   end
 
-  def is_virtual_type(type), do: (Enum.find([:virtual, :belongs_to, :has_many],fn(x) -> x == type end) != nil) 
+  def is_virtual_type(type), do: (Enum.find([:virtual, :belongs_to, :has_many, :setter],fn(x) -> x == type end) != nil) 
 
 end

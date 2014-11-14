@@ -37,24 +37,8 @@ defmodule Exmapper.Model do
         unquote(block)
               
         defstruct Enum.map(@fields, fn({key,val}) -> {key,val[:opts][:default]} end)
-        
-        def new do
-          struct = %__MODULE__{}
-          Enum.reduce(Map.to_list(struct), struct, fn({key,val}, acc) ->
-                        field = __fields__[key]
-                        if field[:type] == :datetime && is_nil(val) do
-                          val = Timex.Date.from({{0,0,0},{0,0,0}}, :local)
-                        end
-                        if is_function(val) do
-                          Map.put(acc, key, val.())
-                        else
-                          Map.put(acc, key, val)
-                        end
-                      end)
-        end
 
-
-        def new(params) do
+        def new(params \\ []) do
           struct = %__MODULE__{}
           params = Enum.map(params,fn({k,v}) ->
                               if is_binary(k) do
