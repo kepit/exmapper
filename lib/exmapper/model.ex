@@ -126,68 +126,6 @@ defmodule Exmapper.Model do
           end
         end
       end
-
-
-      #def create(args) when is_map(args) do create(to_keywords(args)) end
-      #def create(args) when is_list(args) do
-      #  ret = run_callbacks(__MODULE__.__befores__, :create, new(args))
-      #  if ret == false do
-      #    false
-      #  else
-      #    if args[:id] == nil, do: args = Keyword.delete(args,:id)
-      #    args = Enum.reject(
-      #      Enum.map(args,fn({key,val}) ->
-      #                 if __fields__[key][:opts][:required] == true && val == nil, do: raise("Field #{key} is required!")
-      #                 if !Exmapper.is_virtual_type(__fields__[key][:type]) do
-      #                   Field.Transform.encode(__fields__[key][:type], key, val)
-      #                 else
-      #                   nil
-      #                 end
-      #               end),fn(x) -> is_nil(x) end)
-      #    
-      #    values = Enum.join(List.duplicate(["?"],Enum.count(Keyword.values(args))),",")
-      #    keys = Keyword.keys(args)
-      #    data = Exmapper.query("INSERT INTO #{__name__} (#{Enum.join(keys,",")}) VALUES (#{values})",Keyword.values(args),@repo)
-      #    case data do
-      #      {:ok_packet, _, _, id, _, _, _} ->
-      #        data = get(id)
-      #        run_callbacks(__MODULE__.__afters__, :create, data)
-      #        {:ok, data}
-      #      error ->
-      #        Logger.info inspect error
-      #        {:error, error}
-      #    end
-      #  end
-      #end
-
-      #def update(args) when is_map(args) do update(to_keywords(args)) end
-      #def update(args) when is_list(args) do
-      #  ret = run_callbacks(__MODULE__.__befores__, :update, get(args[:id]))
-      #  if ret == false do
-      #    false
-      #  else
-      #    id = args[:id]
-      #    args = Keyword.delete(args,:id)
-      #    args = Keyword.delete(Enum.map(args,fn({key,val}) ->
-      #                                     if !Exmapper.is_virtual_type(__fields__[key][:type]) do
-      #                                       Field.Transform.encode(__fields__[key][:type], key, val)
-      #                                     else
-      #                                       nil 
-      #                                     end
-      #                                   end),nil)
-      #    keys = Enum.join(Enum.map(args,fn({key,val}) -> "#{key} = ?" end),",")
-
-      #    case Exmapper.query("UPDATE #{__name__} SET #{keys} WHERE id = ?",Keyword.values(args)++[id],@repo) do
-      #      {:ok_packet, _, _, _, _, _, _} ->
-      #        data = get(id)
-      #        run_callbacks(__MODULE__.__afters__,:update, data)
-      #        {:ok,data}
-      #      error ->
-      #        Logger.info inspect error
-      #        {:error, error}
-      #    end
-      #  end
-      #end
       
       def create!(args), do: elem(create(args),1)
       def create(args) when is_list(args), do: create_or_update(:create, new(args), {"",[]})
@@ -221,7 +159,8 @@ defmodule Exmapper.Model do
           _ -> {:error, :before_callback}
         end
       end
-
+      
+      def delete!(args), do: elem(delete(args),1)
       def delete(args) when is_list(args), do: delete(first(args))
       def delete(args) when is_nil(args), do: {:error, :not_found}
       def delete(args) when is_map(args) do
