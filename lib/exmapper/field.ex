@@ -4,7 +4,7 @@ defmodule Exmapper.Field do
     quote do
       fields = Module.get_attribute(__MODULE__,:fields)
       field = Keyword.new([{unquote(name), [name: unquote(name), type: unquote(type), opts: unquote(opts)]}])
-      setter_field = Keyword.new([{:"#{unquote(name)}!", [name: unquote(name), type: :setter, opts: [mod: __MODULE__]]}])
+      setter_field = Keyword.new([{:"#{unquote(name)}!", [name: unquote(name), type: :setter, opts: [mod: __MODULE__, original_type: unquote(type)]]}])
       Module.put_attribute(__MODULE__,:fields,fields++field++setter_field)
     end
   end
@@ -13,9 +13,10 @@ defmodule Exmapper.Field do
     quote do
       parent_field = :"#{unquote(name)}_id"
       field = Keyword.new([{parent_field, [name: parent_field, type: :integer, opts: [foreign_key: true, mod: unquote(mod), required: true]]}])
+      setter_field = Keyword.new([{:"#{parent_field}!", [name: parent_field, type: :setter, opts: [mod: __MODULE__, original_type: :integer]]}])
       virt = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :belongs_to, opts: unquote(opts) ++ [parent_field: parent_field, mod: unquote(mod)]]}])
       fields = Module.get_attribute(__MODULE__,:fields)
-      Module.put_attribute(__MODULE__,:fields,fields++field++virt)
+      Module.put_attribute(__MODULE__,:fields,fields++field++setter_field++virt)
     end
   end
   
@@ -67,7 +68,7 @@ defmodule Exmapper.Field do
     def decode(:setter, params, field, _key, _val) do
       fn(new_val) ->
         mod = field[:opts][:mod]
-        mod.new(Keyword.put(params, field[:name], new_val))
+        mod.new(Keyword.put(params, field[:name], encode(field[:opts][:original_type],field[:name],new_val) |> elem(1)))
       end
     end
 
