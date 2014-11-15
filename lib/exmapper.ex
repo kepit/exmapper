@@ -67,7 +67,7 @@ defmodule Exmapper do
   def order_by(args \\ []) do
     if Keyword.has_key?(args,:order_by) do
       if args[:order_by] != "" && is_binary(args[:order_by]) do
-        {"ORDER BY ?",[args[:order_by]]}
+        {"ORDER BY " <> args[:order_by],[]}
       else
         {"", []}
       end
