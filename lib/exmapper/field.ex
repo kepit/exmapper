@@ -67,11 +67,7 @@ defmodule Exmapper.Field do
     def decode(:setter, params, field, _key, _val) do
       fn(new_val) ->
         mod = field[:opts][:mod]
-        if is_nil(params[:id]) do
-          mod.new(Keyword.put(params, field[:name], new_val))
-        else
-          mod.update(mod.new(Keyword.put(params, field[:name], new_val)))
-        end
+        mod.new(Keyword.put(params, field[:name], new_val))
       end
     end
 

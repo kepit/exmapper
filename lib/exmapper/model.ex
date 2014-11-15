@@ -131,7 +131,7 @@ defmodule Exmapper.Model do
       def create(args) when is_map(args), do: create_or_update(:create, Map.merge(new(), args), {"",[]})
       
       def update!(args), do: elem(update(args),1)
-      def update(args) when is_map(args), do: create_or_update(:update, args, Exmapper.where(id: args.id))
+      def update(args) when is_map(args), do: create_or_update(:update, args, where(id: args.id))
 
       defp create_or_update(type, args, where \\ {"",[]}) do
         case run_callbacks(__MODULE__.__befores__, type, args) do
@@ -165,7 +165,7 @@ defmodule Exmapper.Model do
       def delete(args) when is_map(args) do
         case run_callbacks(__MODULE__.__befores__, :delete, args) do
           {:ok, args} ->
-            case Exmapper.query(generate_query(:delete, Exmapper.where(id: args.id)), @repo) do
+            case Exmapper.query(generate_query(:delete, where(id: args.id)), @repo) do
               {:ok, _} ->
                 run_callbacks(__MODULE__.__afters__, :delete, args)
                 {:ok, :success}
