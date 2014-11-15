@@ -43,16 +43,6 @@ defmodule Exmapper.Field do
       val
     end
 
-    def decode(:setter, params, field, key, val) do
-      fn(new_val) ->
-        mod = field[:opts][:mod]
-        if is_nil(params[:id]) do
-          mod.new(Keyword.put(params, field[:name], new_val))
-        else
-          mod.update(mod.new(Keyword.put(params, field[:name], new_val)))
-        end
-      end
-    end
 
     def encode(:boolean, key, val) do
       retval = case val == true do
@@ -74,7 +64,18 @@ defmodule Exmapper.Field do
       { key, val } 
     end
 
-    def decode(:belongs_to, params, field, key, val) do
+    def decode(:setter, params, field, _key, _val) do
+      fn(new_val) ->
+        mod = field[:opts][:mod]
+        if is_nil(params[:id]) do
+          mod.new(Keyword.put(params, field[:name], new_val))
+        else
+          mod.update(mod.new(Keyword.put(params, field[:name], new_val)))
+        end
+      end
+    end
+
+    def decode(:belongs_to, params, field, _key, val) do
       id = params[field[:opts][:parent_field]]
       if id != nil do
         mod = field[:opts][:mod]
@@ -86,7 +87,7 @@ defmodule Exmapper.Field do
       end
     end
     
-    def decode(:has_many, params, field, key, val) do
+    def decode(:has_many, params, field, _key, val) do
       if params[:id] != nil do
         mod = field[:opts][:mod]
         through = field[:opts][:through]
@@ -118,7 +119,7 @@ defmodule Exmapper.Field do
     end
 
     def decode(:json, _params, _field, _key, val) do
-      {state, data} = JSEX.decode(val)
+      {_, data} = JSEX.decode(val)
       data
     end
 

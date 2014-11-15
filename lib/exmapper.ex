@@ -16,11 +16,15 @@ defmodule Exmapper do
     :emysql.add_pool(pool, [{:size,size}, {:user,user}, {:password,password}, {:database,database}, {:encoding,encoding}])
   end
 
-  def query(query, args \\ [], pool \\ :default) do
+  def query({query, args}, pool) do
+    if is_nil(pool), do: pool = :default
+    query(query, args, pool)
+  end
+
+
+  def query(query, args, pool \\ :default) do
     before_time = :os.timestamp()
-    ret = :emysql.execute(pool, query, Enum.map(args,fn(x) ->
-                                         Exmapper.Field.Transform.main_encode(x) # FIXME: remove this
-                                        end))
+    ret = :emysql.execute(pool, query, args)
     after_time = :os.timestamp()
     diff = :timer.now_diff(after_time, before_time)
     Logger.debug fn -> 
@@ -33,7 +37,7 @@ defmodule Exmapper do
     :emysql.as_proplist(result)
   end
 
-  defp where_transform("in", value), do: ["IN","(" <> Enum.join(Enum.map(value, fn(v) -> "?" end),",") <> ")", value]
+  defp where_transform("in", value), do: ["IN","(" <> Enum.join(Enum.map(value, fn(_v) -> "?" end),",") <> ")", value]
   defp where_transform("gt", value), do: [">","?", value]
   defp where_transform("gte", value), do: [">=","?", value]
   defp where_transform("lt", value), do: ["<","?", value]
@@ -41,26 +45,9 @@ defmodule Exmapper do
   defp where_transform("like", value), do: ["LIKE","?", value]
   defp where_transform(_, value), do: ["=","?", value]
 
-  def where2(keyword \\ []) do
-    if Enum.count(keyword) > 0 do
-      ret = Enum.map(keyword, fn({key,value}) ->
-                 mark = "="
-                 key = Atom.to_string(key)
-                 oper = List.last(String.split(key,"."))
-                 key = String.replace(key, ".#{oper}","") # Fixme: regexp end
-                 [mark, qm, value] = where_transform(oper, value)
-                 "#{key} #{mark} #{qm}"
-               end) |> Enum.join(" AND ")
-      "WHERE #{ret}"
-    else
-      ""
-    end
-  end
-
   def where(keyword \\ []) do
     if Enum.count(keyword) > 0 do
       {ret, values} = Enum.map_reduce keyword, [], fn({key,value}, acc) ->
-                 mark = "="
                  key = Atom.to_string(key)
                  oper = List.last(String.split(key,"."))
                  key = String.replace(key, ".#{oper}","")
@@ -73,30 +60,55 @@ defmodule Exmapper do
     end
   end
 
-  def count(table, args \\ [], pool \\ :default), do: select("COUNT(*)",table, args, pool)
-  def all(table, args \\ [], pool \\ :default), do: select("*",table,args,pool,"id ASC")
-  def first(table, args \\ [], pool \\ :defaut), do: select("*", table,Keyword.merge([limit: 1],args),pool,"id ASC")
-  def last(table, args \\ [], pool \\ :defaut), do: select("*", table,Keyword.merge([limit: 1],args),pool,"id DESC")
-  def get(table, id, pool \\ :default), do: select("*", table, [id: id], pool)
+  def limit(args \\ []) do
+    if Keyword.has_key?(args,:limit) do
+      if is_integer(args[:limit]) do 
+      {"LIMIT ?",[args[:limit]]}
+      else 
+      {"",[]} 
+      end
+    else
+      {"", []}
+    end
+  end
+
+  def order_by(args \\ []) do
+    if Keyword.has_key?(args,:order_by) do
+      if args[:order_by] != "" && is_binary(args[:order_by]) do
+        {"ORDER BY ?",[args[:order_by]]}
+      else
+        {"", []}
+      end
+    else
+      {"", []}
+    end
+  end
+  
+  
+  def count(table, args \\ [], pool \\ :default), do: select("COUNT(*)",table, args) |> query(pool)
+  def all(table, args \\ [], pool \\ :default), do: select("*",table,args,"id ASC") |> query(pool)
+  def first(table, args \\ [], pool \\ :defaut), do: select("*", table,Keyword.merge([limit: 1],args),"id ASC") |> query(pool)
+  def last(table, args \\ [], pool \\ :defaut), do: select("*", table,Keyword.merge([limit: 1],args),"id DESC") |> query(pool)
+  def get(table, id, pool \\ :default), do: select("*", table, [id: id]) |> query(pool)
 
 
-  defp select(what, table, args, pool, order_by \\ "") do
-    limit = ""
-
+  def select(what, table, args, default_order_by \\ "") do
     if what == "", do: what = "*"
 
-    if Keyword.has_key?(args,:limit) do
-      if is_integer(args[:limit]), do: limit = "LIMIT #{args[:limit]}"
-      args = Keyword.delete(args,:limit)
+    {order_by_sql, order_by_args} = order_by(args)
+    args = Keyword.delete(args,:order_by)
+    if (order_by_sql == "" and default_order_by != "") do
+      {order_by_sql, order_by_args} = order_by(order_by: default_order_by)
     end
 
-    if order_by != "", do: order_by = "ORDER BY " <> order_by
+    {limit_sql, limit_args} = limit(args)
+    args = Keyword.delete(args,:limit)
 
-    if Keyword.has_key?(args,:order_by) do
-      if args[:order_by] != "" && is_binary(args[:order_by]), do: order_by = "ORDER BY " <> args[:order_by]
-      args = Keyword.delete(args,:order_by)
-    end
-    query("SELECT #{what} FROM #{table} #{where2(args)} #{order_by} #{limit}",List.flatten(Keyword.values(args)),pool)
+    {where_sql, where_args} = where(args)
+    
+    sql = "SELECT #{what} FROM #{table} #{where_sql} #{order_by_sql} #{limit_sql}"
+    sql_args = List.flatten(where_args ++ order_by_args ++ limit_args)
+    {sql, sql_args}
   end
 
 
