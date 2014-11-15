@@ -138,11 +138,6 @@ defmodule Exmapper.Model do
                        if __fields__[key][:opts][:required] == true && val == nil, do: raise("Field #{key} is required!")
                        if !Exmapper.is_virtual_type(__fields__[key][:type]) do
                          Field.Transform.encode(__fields__[key][:type], key, val)
-                         #if __fields__[key][:type] == :datetime do
-                         #  {key, {{val[:year],val[:month],val[:day]},{val[:hour],val[:minute],val[:second]}}}
-                         #else
-                         #  {key,val}
-                         #end
                        else
                          nil
                        end
@@ -174,11 +169,6 @@ defmodule Exmapper.Model do
           args = Keyword.delete(Enum.map(args,fn({key,val}) ->
                                            if !Exmapper.is_virtual_type(__fields__[key][:type]) do
                                              Field.Transform.encode(__fields__[key][:type], key, val)
-#                                             if __fields__[key][:type] == :datetime do
-#                                               {key, {{val[:year],val[:month],val[:day]},{val[:hour],val[:minute],val[:second]}}}
-#                                             else
-#                                               {key,val}
-#                                             end
                                            else
                                              nil 
                                            end
