@@ -41,7 +41,7 @@ defmodule Exmapper do
   defp where_transform("like", value), do: ["LIKE","?", value]
   defp where_transform(_, value), do: ["=","?", value]
 
-  def where(keyword \\ []) do
+  def where2(keyword \\ []) do
     if Enum.count(keyword) > 0 do
       ret = Enum.map(keyword, fn({key,value}) ->
                  mark = "="
@@ -57,7 +57,7 @@ defmodule Exmapper do
     end
   end
 
-  def where2(keyword \\ []) do
+  def where(keyword \\ []) do
     if Enum.count(keyword) > 0 do
       {ret, values} = Enum.map_reduce keyword, [], fn({key,value}, acc) ->
                  mark = "="
@@ -96,7 +96,7 @@ defmodule Exmapper do
       if args[:order_by] != "" && is_binary(args[:order_by]), do: order_by = "ORDER BY " <> args[:order_by]
       args = Keyword.delete(args,:order_by)
     end
-    query("SELECT #{what} FROM #{table} #{where(args)} #{order_by} #{limit}",List.flatten(Keyword.values(args)),pool)
+    query("SELECT #{what} FROM #{table} #{where2(args)} #{order_by} #{limit}",List.flatten(Keyword.values(args)),pool)
   end
 
 
