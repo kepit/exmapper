@@ -52,6 +52,7 @@ defmodule Exmapper.Field do
           mod.update(mod.new(Keyword.put(params, field[:name], new_val)))
         end
       end
+    end
 
     def encode(:boolean, key, val) do
       retval = case val == true do
