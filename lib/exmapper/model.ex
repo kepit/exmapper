@@ -150,10 +150,10 @@ defmodule Exmapper.Model do
             {:ok_packet, _, _, id, _, _, _} ->
               data = get(id)
               run_callbacks(__MODULE__.__afters__, :create, data)
-              {true, data}
+              {:ok, data}
             error ->
               Logger.info inspect error
-              false
+              {:error, error}
           end
         end
       end
@@ -179,10 +179,10 @@ defmodule Exmapper.Model do
             {:ok_packet, _, _, _, _, _, _} ->
               data = get(id)
               run_callbacks(__MODULE__.__afters__,:update, data)
-              {true,data}
+              {:ok,data}
             error ->
               Logger.info inspect error
-              false
+              {:error, error}
           end
         end
       end
@@ -197,10 +197,10 @@ defmodule Exmapper.Model do
           case Exmapper.query("DELETE FROM #{__name__} WHERE id = ?",[args[:id]],@repo) do
             {:ok_packet, _, _, _, _, _, _} ->
               run_callbacks(__MODULE__.__afters__, :delete, new(args))
-              true
+              {:ok, :success}
             error ->
               Logger.info inspect error
-              false
+              {:error, error}
           end
         end
       end
