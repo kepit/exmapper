@@ -33,7 +33,20 @@ defmodule Exmapper do
     Logger.debug fn -> 
       "[#{diff/1000}ms] #{Enum.reduce(args, query, fn(x, acc) -> String.replace(acc, "?", inspect(x), global: false) end)}"
     end
-    ret
+    normalize_result(:emysql, ret)
+  end
+
+  
+  def normalize_result(:emysql, {:result_packet,_,_,_,_} = ret) do
+    {:ok, :emysql.as_proplist(ret)}
+  end
+  
+  def normalize_result(:emysql, {:ok_packet, _seq_num, affected_rows, insert_id, status, warning_count, msg}) do
+    {:ok, [insert_id: insert_id, affected_rows: affected_rows, status: status, msg: msg, warning_count: warning_count]}
+  end
+
+  def normalize_result(:emysql, {:error_packet, _seq_num, code, msg}) do
+    {:error, [code: code, msg: msg]}
   end
 
   def to_proplist(result) do
