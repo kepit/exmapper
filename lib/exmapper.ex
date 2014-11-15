@@ -46,6 +46,7 @@ defmodule Exmapper do
   end
 
   def normalize_result(:emysql, {:error_packet, _seq_num, code, msg}) do
+    Logger.error "Code: #{code} #{msg}"
     {:error, [code: code, msg: msg]}
   end
 
@@ -101,11 +102,11 @@ defmodule Exmapper do
   end
   
   
-  def count(table, args \\ [], pool \\ :default), do: select("COUNT(*)",table, args) |> query(pool)
-  def all(table, args \\ [], pool \\ :default), do: select("*",table,args,"id ASC") |> query(pool)
-  def first(table, args \\ [], pool \\ :defaut), do: select("*", table,Keyword.merge([limit: 1],args),"id ASC") |> query(pool)
-  def last(table, args \\ [], pool \\ :defaut), do: select("*", table,Keyword.merge([limit: 1],args),"id DESC") |> query(pool)
-  def get(table, id, pool \\ :default), do: select("*", table, [id: id]) |> query(pool)
+  def count(table, args \\ [], pool \\ :default), do: select("COUNT(*)",table, args) |> query(pool) |> elem(1)
+  def all(table, args \\ [], pool \\ :default), do: select("*",table,args,"id ASC") |> query(pool) |> elem(1)
+  def first(table, args \\ [], pool \\ :defaut), do: select("*", table,Keyword.merge([limit: 1],args),"id ASC") |> query(pool) |> elem(1)
+  def last(table, args \\ [], pool \\ :defaut), do: select("*", table,Keyword.merge([limit: 1],args),"id DESC") |> query(pool) |> elem(1)
+  def get(table, id, pool \\ :default), do: select("*", table, [id: id]) |> query(pool) |> elem(1)
 
 
   def select(what, table, args, default_order_by \\ "") do

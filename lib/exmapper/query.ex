@@ -17,8 +17,8 @@ defmodule Exmapper.Query do
         {"UPDATE #{@table} SET #{set} #{where_sql}", List.flatten(Keyword.values(Keyword.delete(args,:id)))++where_args}
       end
 
-      def generate_query(:delete, args, {where_sql, where_args}) do
-        
+      def generate_query(:delete, {where_sql, where_args}) do
+        {"DELETE FROM #{@table} #{where_sql}", where_args}
       end
 
     end

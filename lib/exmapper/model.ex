@@ -105,11 +105,11 @@ defmodule Exmapper.Model do
 
       def to_keywords(value), do: Exmapper.to_keywords(value)
 
-      def all(args \\ []), do: Enum.map(Exmapper.all(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist, fn(x) -> new(x) end)
-      def count(args \\ []), do: elem(List.first(List.first(Exmapper.count(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist)),1)
-      def first(args \\ []), do: first_last_get(Exmapper.first(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist)
-      def last(args \\ []), do: first_last_get(Exmapper.last(Atom.to_string(__name__),args,@repo) |> Exmapper.to_proplist)
-      def get(id), do: first_last_get(Exmapper.get(Atom.to_string(__name__),id,@repo) |> Exmapper.to_proplist)
+      def all(args \\ []), do: Enum.map(Exmapper.all(Atom.to_string(__name__),args,@repo), fn(x) -> new(x) end)
+      def count(args \\ []), do: elem(List.first(List.first(Exmapper.count(Atom.to_string(__name__),args,@repo))),1)
+      def first(args \\ []), do: first_last_get(Exmapper.first(Atom.to_string(__name__),args,@repo))
+      def last(args \\ []), do: first_last_get(Exmapper.last(Atom.to_string(__name__),args,@repo))
+      def get(id), do: first_last_get(Exmapper.get(Atom.to_string(__name__),id,@repo))
 
       defp first_last_get(data, reverse \\ false) do
         if Enum.count(data) > 1 do
@@ -194,7 +194,6 @@ defmodule Exmapper.Model do
       def create(args) when is_map(args), do: create_or_update(:create, Map.merge(new(), args), {"",[]})
       
       def update!(args), do: elem(update(args),1)
-      #def update(args) when is_list(args), do: update(Dict.merge(get(args[:id]),Keyword.delete(args,:id)))
       def update(args) when is_map(args), do: create_or_update(:update, args, Exmapper.where(id: args.id))
 
       defp create_or_update(type, args, where \\ {"",[]}) do
@@ -209,7 +208,8 @@ defmodule Exmapper.Model do
                          end
                        end),fn(x) -> is_nil(x) end)
             case Exmapper.query(generate_query(type, args, where), @repo) do
-              {:ok_packet, _, _, id, _, _, _} ->
+              {:ok, data} ->
+                id = data[:insert_id]
                 if id == 0 && !is_nil(args[:id]), do: id = args[:id]
                 data = get(id)
                 run_callbacks(__MODULE__.__afters__, type, data)
@@ -222,23 +222,23 @@ defmodule Exmapper.Model do
         end
       end
 
-      # Fixme: use where builder from Exmapper
-      def delete(args) when is_map(args) do delete(to_keywords(args)) end
-      def delete(args) when is_list(args) do
-        ret = run_callbacks(__MODULE__.__befores__, :delete, get(args[:id]))
-        if ret == false do
-          false
-        else
-          case Exmapper.query("DELETE FROM #{__name__} WHERE id = ?",[args[:id]],@repo) do
-            {:ok_packet, _, _, _, _, _, _} ->
-              run_callbacks(__MODULE__.__afters__, :delete, new(args))
-              {:ok, :success}
-            error ->
-              Logger.info inspect error
-              {:error, error}
-          end
+      def delete(args) when is_list(args), do: delete(first(args))
+      def delete(args) when is_nil(args), do: {:error, :not_found}
+      def delete(args) when is_map(args) do
+        case run_callbacks(__MODULE__.__befores__, :delete, args) do
+          {:ok, args} ->
+            case Exmapper.query(generate_query(:delete, Exmapper.where(id: args.id)), @repo) do
+              {:ok, _} ->
+                run_callbacks(__MODULE__.__afters__, :delete, args)
+                {:ok, :success}
+              error ->
+                Logger.info inspect error
+                {:error, error}
+            end
+          _ -> {:error, :before_callback}
         end
       end
+
     end
   end
 
