@@ -1,19 +1,12 @@
 defmodule Exmapper do
   require Logger
 
+  def adapter do
+    Exmapper.Mysql
+  end
+
   def connect(params) do
-    user = params[:username]
-    password = params[:password]
-    database = params[:database]
-    size = if is_nil(params[:pool_size]), do: 1, else: params[:pool_size]
-    encoding = if is_nil(params[:encoding]), do: :utf8, else: params[:encoding]
-    pool = if is_nil(params[:repo]), do: :default, else: params[:repo] 
-    if is_binary(user), do: user = String.to_char_list(user)
-    if is_binary(password), do: password = String.to_char_list(password)
-    if is_binary(database), do: database = String.to_char_list(database)
-    :application.start(:crypto)
-    :application.start(:emysql)
-    :emysql.add_pool(pool, [{:size,size}, {:user,user}, {:password,password}, {:database,database}, {:encoding,encoding}])
+    adapter().connect(params)
   end
 
   def query({query, args}) do
@@ -27,31 +20,13 @@ defmodule Exmapper do
 
   def query(query, args, pool \\ :default) do
     before_time = :os.timestamp()
-    ret = :emysql.execute(pool, query, args)
+    ret = adapter().query(pool, query, args)
     after_time = :os.timestamp()
     diff = :timer.now_diff(after_time, before_time)
     Logger.debug fn -> 
       "[#{diff/1000}ms] #{Enum.reduce(args, query, fn(x, acc) -> String.replace(acc, "?", inspect(x), global: false) end)}"
     end
-    normalize_result(:emysql, ret)
-  end
-
-  
-  def normalize_result(:emysql, {:result_packet,_,_,_,_} = ret) do
-    {:ok, :emysql.as_proplist(ret)}
-  end
-  
-  def normalize_result(:emysql, {:ok_packet, _seq_num, affected_rows, insert_id, status, warning_count, msg}) do
-    {:ok, [insert_id: insert_id, affected_rows: affected_rows, status: status, msg: msg, warning_count: warning_count]}
-  end
-
-  def normalize_result(:emysql, {:error_packet, _seq_num, code, msg}) do
-    Logger.error "Code: #{code} #{msg}"
-    {:error, [code: code, msg: msg]}
-  end
-
-  def to_proplist(result) do
-    :emysql.as_proplist(result)
+    adapter().normalize_result(ret)
   end
 
   defp where_transform("in", value), do: ["IN","(" <> Enum.join(Enum.map(value, fn(_v) -> "?" end),",") <> ")", value]
@@ -62,9 +37,9 @@ defmodule Exmapper do
   defp where_transform("like", value), do: ["LIKE","?", value]
   defp where_transform(_, value), do: ["=","?", value]
 
-  def where(keyword \\ []) do
-    if Enum.count(keyword) > 0 do
-      {ret, values} = Enum.map_reduce keyword, [], fn({key,value}, acc) ->
+  def where(args \\ []) do
+    if Enum.count(args) > 0 do
+      {ret, values} = Enum.map_reduce args, [], fn({key,value}, acc) ->
                  key = Atom.to_string(key)
                  oper = List.last(String.split(key,"."))
                  key = String.replace(key, ".#{oper}","")
@@ -117,7 +92,6 @@ defmodule Exmapper do
     if (order_by_sql == "" and default_order_by != "") do
       {order_by_sql, order_by_args} = order_by(order_by: default_order_by)
     end
-
 
     {limit_sql, limit_args} = limit(args)
     args = Keyword.delete(args,:limit)
