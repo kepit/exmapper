@@ -2,7 +2,7 @@ defmodule Exmapper.Migration do
 
   require Logger
 
-  @field_types [string: "VARCHAR(255)", integer: "INT", text: "TEXT", float: "FLOAT", double: "DOUBLE", boolean: "TINYINT(1)", datetime: "DATETIME"]
+  @field_types [string: "VARCHAR(255)", integer: "INT", text: "TEXT", float: "FLOAT", double: "DOUBLE", boolean: "TINYINT(1)", datetime: "DATETIME", json: "TEXT"]
   
   defp fields_to_mysql(collection,joiner,fun) do
     Enum.join(Enum.reject(Enum.map(collection,fn({key,val}) ->

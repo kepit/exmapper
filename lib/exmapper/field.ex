@@ -31,7 +31,7 @@ defmodule Exmapper.Field do
 
   defmodule Transform do
     
-    def encode(val) when is_boolean(val) do
+    def main_encode(val) when is_boolean(val) do
       if val == true do
         1
       else
@@ -39,7 +39,7 @@ defmodule Exmapper.Field do
       end
     end
 
-    def encode(val) do
+    def main_encode(val) do
       val
     end
 
@@ -52,6 +52,25 @@ defmodule Exmapper.Field do
           mod.update(mod.new(Keyword.put(params, field[:name], new_val)))
         end
       end
+
+    def encode(:boolean, key, val) do
+      retval = case val == true do
+        true -> 1
+        false -> 0
+      end
+      {key, retval}
+    end
+
+    def encode(:datetime, key, val) do
+      {key, {{val[:year],val[:month],val[:day]},{val[:hour],val[:minute],val[:second]}}}
+    end
+
+    def encode(:json, key, val) when is_map(val) do
+      {key, JSEX.encode!(val)}
+    end
+
+    def encode(_, key, val) do
+      { key, val } 
     end
 
     def decode(:belongs_to, params, field, key, val) do
@@ -97,11 +116,15 @@ defmodule Exmapper.Field do
       end          
     end
 
-    def decode(:boolean, params, field, key, val) do
+    def decode(:json, _params, _field, _key, val) do
+      JSEX.decode!(val)
+    end
+
+    def decode(:boolean, _params, _field, _key, val) do
       val == 1
     end
     
-    def decode(:datetime, params, field, key, val) do
+    def decode(:datetime, _params, _field, _key, val) do
       if is_tuple(val) && elem(val,0) == :datetime do
         Timex.Date.from(elem(val,1),:local)
       else
@@ -113,7 +136,7 @@ defmodule Exmapper.Field do
       end
     end
 
-    def decode(_, params, field, key, val) do
+    def decode(_, _params, _field, _key, val) do
       if is_function(val) do
         val.()
       else

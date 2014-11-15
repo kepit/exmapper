@@ -133,19 +133,21 @@ defmodule Exmapper.Model do
           false
         else
           if args[:id] == nil, do: args = Keyword.delete(args,:id)
-          args = Enum.reject(Enum.map(args,fn({key,val}) ->
-                                           if __fields__[key][:opts][:required] == true && val == nil, do: raise("Field #{key} is required!")
-                                           if !Exmapper.is_virtual_type(__fields__[key][:type]) do
-                                             if __fields__[key][:type] == :datetime do
-                                               {key, {{val[:year],val[:month],val[:day]},{val[:hour],val[:minute],val[:second]}}}
-                                             else
-                                               {key,val}
-                                             end
-                                           else
-                                             nil
-                                           end
-                                         end),fn(x) -> is_nil(x) end)
-
+          args = Enum.reject(
+            Enum.map(args,fn({key,val}) ->
+                       if __fields__[key][:opts][:required] == true && val == nil, do: raise("Field #{key} is required!")
+                       if !Exmapper.is_virtual_type(__fields__[key][:type]) do
+                         Field.Transform.encode(__fields__[key][:type], key, val)
+                         #if __fields__[key][:type] == :datetime do
+                         #  {key, {{val[:year],val[:month],val[:day]},{val[:hour],val[:minute],val[:second]}}}
+                         #else
+                         #  {key,val}
+                         #end
+                       else
+                         nil
+                       end
+                     end),fn(x) -> is_nil(x) end)
+          
           values = Enum.join(List.duplicate(["?"],Enum.count(Keyword.values(args))),",")
           keys = Keyword.keys(args)
           data = Exmapper.query("INSERT INTO #{__name__} (#{Enum.join(keys,",")}) VALUES (#{values})",Keyword.values(args),@repo)
@@ -171,11 +173,12 @@ defmodule Exmapper.Model do
           args = Keyword.delete(args,:id)
           args = Keyword.delete(Enum.map(args,fn({key,val}) ->
                                            if !Exmapper.is_virtual_type(__fields__[key][:type]) do
-                                             if __fields__[key][:type] == :datetime do
-                                               {key, {{val[:year],val[:month],val[:day]},{val[:hour],val[:minute],val[:second]}}}
-                                             else
-                                               {key,val}
-                                             end
+                                             Field.Transform.encode(__fields__[key][:type], key, val)
+#                                             if __fields__[key][:type] == :datetime do
+#                                               {key, {{val[:year],val[:month],val[:day]},{val[:hour],val[:minute],val[:second]}}}
+#                                             else
+#                                               {key,val}
+#                                             end
                                            else
                                              nil 
                                            end

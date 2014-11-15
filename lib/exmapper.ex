@@ -19,7 +19,7 @@ defmodule Exmapper do
   def query(query, args \\ [], pool \\ :default) do
     before_time = :os.timestamp()
     ret = :emysql.execute(pool, query, Enum.map(args,fn(x) ->
-                                         Exmapper.Field.Transform.encode(x)
+                                         Exmapper.Field.Transform.main_encode(x) # FIXME: remove this
                                         end))
     after_time = :os.timestamp()
     diff = :timer.now_diff(after_time, before_time)
