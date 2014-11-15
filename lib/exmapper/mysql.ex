@@ -31,4 +31,9 @@ defmodule Exmapper.Mysql do
     {:error, [code: code, msg: msg]}
   end
 
+  def normalize_result({:error_packet, _seq_num, _, code, msg}) do
+    {:error, [code: code, msg: msg]}
+  end
+
+
 end
