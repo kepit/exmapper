@@ -21,6 +21,72 @@ defmodule Exmapper.Query do
         {"DELETE FROM #{@table} #{where_sql}", where_args}
       end
 
-    end
+
+      defp where_transform("in", value), do: ["IN","(" <> Enum.join(Enum.map(value, fn(_v) -> "?" end),",") <> ")", value]
+      defp where_transform("gt", value), do: [">","?", value]
+      defp where_transform("gte", value), do: [">=","?", value]
+      defp where_transform("lt", value), do: ["<","?", value]
+      defp where_transform("lte", value), do: ["<=","?", value]
+      defp where_transform("like", value), do: ["LIKE","?", value]
+      defp where_transform(_, value), do: ["=","?", value]
+      
+      def select(what, table, args, default_order_by \\ "") do
+        if what == "", do: what = "*"
+          
+        {order_by_sql, order_by_args} = order_by(args)
+        args = Keyword.delete(args,:order_by)
+        if (order_by_sql == "" and default_order_by != "") do
+          {order_by_sql, order_by_args} = order_by(order_by: default_order_by)
+        end
+        
+        {limit_sql, limit_args} = limit(args)
+        args = Keyword.delete(args,:limit)
+        
+        {where_sql, where_args} = where(args)
+        
+        sql = "SELECT #{what} FROM #{table} #{where_sql} #{order_by_sql} #{limit_sql}"
+        sql_args = List.flatten(where_args ++ order_by_args ++ limit_args)
+        {sql, sql_args}
+      end
+
+      def where(args \\ []) do
+        if Enum.count(args) > 0 do
+          {ret, values} = Enum.map_reduce args, [], fn({key,value}, acc) ->
+            key = Atom.to_string(key)
+            oper = List.last(String.split(key,"."))
+            key = String.replace(key, ".#{oper}","")
+            [mark, qm , value] = where_transform(oper, value)
+            { "#{key} #{mark} #{qm}", acc ++ [value]}
+          end
+          {"WHERE " <> (ret |> Enum.join(" AND ")), values}
+        else
+          {"", []}
+        end
+      end
+      
+      def limit(args \\ []) do
+        if Keyword.has_key?(args,:limit) do
+          if is_integer(args[:limit]) do 
+          {"LIMIT ?",[args[:limit]]}
+          else 
+          {"",[]} 
+          end
+        else
+          {"", []}
+        end
+      end
+      
+      def order_by(args \\ []) do
+        if Keyword.has_key?(args,:order_by) do
+          if args[:order_by] != "" && is_binary(args[:order_by]) do
+            {"ORDER BY " <> args[:order_by],[]}
+          else
+            {"", []}
+          end
+        else
+          {"", []}
+        end
+      end
+     end
   end
 end

@@ -98,34 +98,33 @@ defmodule Exmapper.Model do
           {:ok, args}
         end
       end
+      
+      defp table_name() do
+        Atom.to_string(__name__)
+      end
 
+      defp to_new(args) when is_tuple(args) do
+        args |> elem(1) |> to_new
+      end
+      defp to_new(args) when is_list(args) do
+        Enum.map args, fn(a) -> new(a) end
+      end
+      defp to_new(args) when is_nil(args) do
+        nil
+      end
+
+      
       def migrate, do: Exmapper.Migration.migrate(__MODULE__)
       def upgrade, do: Exmapper.Migration.upgrade(__MODULE__)
       def drop, do: Exmapper.Migration.drop(__MODULE__)
 
       def to_keywords(value), do: Exmapper.to_keywords(value)
 
-      def all(args \\ []), do: Enum.map(Exmapper.all(Atom.to_string(__name__),args,@repo), fn(x) -> new(x) end)
-      def count(args \\ []), do: elem(List.first(List.first(Exmapper.count(Atom.to_string(__name__),args,@repo))),1)
-      def first(args \\ []), do: first_last_get(Exmapper.first(Atom.to_string(__name__),args,@repo))
-      def last(args \\ []), do: first_last_get(Exmapper.last(Atom.to_string(__name__),args,@repo))
-      def get(id), do: first_last_get(Exmapper.get(Atom.to_string(__name__),id,@repo))
-
-      defp first_last_get(data, reverse \\ false) do
-        if Enum.count(data) > 1 do
-          if reverse do
-            Enum.reverse(Enum.map(data, fn(x) -> new(x) end))
-          else
-            Enum.map(data, fn(x) -> new(x) end)
-          end
-        else
-          if Enum.count(data) > 0 do
-            new(List.first(data))
-          else
-            nil
-          end
-        end
-      end
+      def all(args \\ []), do: select("*", table_name, args, "id ASC") |> Exmapper.query(@repo) |> to_new
+      def count(args \\ []), do: select("COUNT(*)", table_name, args) |> Exmapper.query(@repo) |> elem(1) |> List.first |> List.first |> elem(1)
+      def first(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],args), "id ASC") |> Exmapper.query(@repo) |> to_new |> List.first
+      def last(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],args), "id DESC") |> Exmapper.query(@repo) |> to_new |> List.first
+      def get(id), do: select("*", table_name, [id: id]) |> Exmapper.query(@repo) |> to_new |> List.first
       
       def create!(args), do: elem(create(args),1)
       def create(args) when is_list(args), do: create_or_update(:create, new(args), {"",[]})
