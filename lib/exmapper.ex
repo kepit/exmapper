@@ -16,11 +16,14 @@ defmodule Exmapper do
     :emysql.add_pool(pool, [{:size,size}, {:user,user}, {:password,password}, {:database,database}, {:encoding,encoding}])
   end
 
+  def query({query, args}) do
+    query({query,args},:default)
+  end
+
   def query({query, args}, pool) do
     if is_nil(pool), do: pool = :default
     query(query, args, pool)
   end
-
 
   def query(query, args, pool \\ :default) do
     before_time = :os.timestamp()
@@ -28,7 +31,7 @@ defmodule Exmapper do
     after_time = :os.timestamp()
     diff = :timer.now_diff(after_time, before_time)
     Logger.debug fn -> 
-      "[#{diff/1000}ms] #{query}"
+      "[#{diff/1000}ms] #{Enum.reduce(args, query, fn(x, acc) -> String.replace(acc, "?", inspect(x), global: false) end)}"
     end
     ret
   end
@@ -100,6 +103,7 @@ defmodule Exmapper do
     if (order_by_sql == "" and default_order_by != "") do
       {order_by_sql, order_by_args} = order_by(order_by: default_order_by)
     end
+
 
     {limit_sql, limit_args} = limit(args)
     args = Keyword.delete(args,:limit)
