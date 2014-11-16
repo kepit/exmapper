@@ -30,19 +30,6 @@ defmodule Exmapper.Field do
 
 
   defmodule Transform do
-    
-    def main_encode(val) when is_boolean(val) do
-      if val == true do
-        1
-      else
-        0
-      end
-    end
-
-    def main_encode(val) do
-      val
-    end
-
 
     def encode(:boolean, key, val) do
       retval = case val == true do
@@ -58,6 +45,14 @@ defmodule Exmapper.Field do
 
     def encode(:json, key, val) when is_map(val) do
       {key, JSEX.encode!(val)}
+    end
+
+    def encode(:string, key, val) when is_nil(val) do
+      {key, :undefined}
+    end
+
+    def encode(:text, key, val) when is_nil(val) do
+      {key, :undefined}
     end
 
     def encode(_, key, val) do
@@ -81,6 +76,14 @@ defmodule Exmapper.Field do
       else
         val
       end
+    end
+
+    def decode(:string, _, _, _, :undefined) do
+      nil
+    end
+
+    def decode(:text, _, _, _, :undefined) do
+      nil
     end
     
     def decode(:has_many, params, field, _key, val) do
