@@ -29,6 +29,10 @@ defmodule Exmapper.Query do
       defp where_transform(type, value) when type in ["in"] and is_list(value) do 
           [type,"(" <> Enum.join(Enum.map(value, fn(_v) -> "?" end),",") <> ")", value]
       end
+      
+      defp where_transform(type, value) when type in ["<","<=",">",">="] do
+        [type, "?", value]
+      end
 
       defp where_transform("gt", value), do: [">","?", value]
       defp where_transform("gte", value), do: [">=","?", value]
@@ -39,7 +43,6 @@ defmodule Exmapper.Query do
       
       defp select(what, table, args, default_order_by \\ "") do
         if what == "", do: what = "*"
-          
         {order_by_sql, order_by_args} = order_by(args)
         args = Keyword.delete(args,:order_by)
         if (order_by_sql == "" and default_order_by != "") do

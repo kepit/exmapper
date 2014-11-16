@@ -60,9 +60,6 @@ defmodule Exmapper.Model do
 
         end
 
-
-     
-
         def __befores__, do: @befores
         def __afters__, do: @afters
         def __name__, do: @name
