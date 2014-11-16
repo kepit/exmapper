@@ -110,7 +110,11 @@ defmodule Exmapper.Field do
              ids = Enum.map assoc, fn(a) ->
                Map.get(a,assoc_mod_id)
              end
-             query = Keyword.new([{String.to_atom("id.in"), ids}])
+             if Enum.count(ids) == 0 do
+               query = ["true": false]
+             else
+               query = Keyword.new([{String.to_atom("id.in"), ids}])
+             end
            end
            if is_list(args) do
              type = Enum.at(args,0)
@@ -119,8 +123,17 @@ defmodule Exmapper.Field do
              type = args
              args = query
            end
-           apply(mod, type, [args])
-          end)
+           result = apply(mod, type, [args])
+           if through != nil do
+             id = cond do
+               type in [:create, :update] -> elem(result,1).id
+               type in [:"create!", :"update!"] -> result.id
+               true -> nil
+             end
+             unless is_nil(id), do: through.create("#{Exmapper.module_to_id(mod)}": id, "#{foreign_key}": params[:id])
+           end
+           result
+         end)
       else
         val
       end          
