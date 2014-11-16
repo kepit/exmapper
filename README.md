@@ -52,6 +52,8 @@ Model.all(order_by: "id DESC") # ORDER BY id DESC
 
 Model.first().assoc.(:all, name: "test")
 Model.first().assoc.(:first, name: "test")
+Model.first().assoc.(:create, name: "test")
+Model.first().name!.("new_name") 
 
 Model.first()
 Model.last()
