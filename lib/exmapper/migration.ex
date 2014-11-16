@@ -67,8 +67,8 @@ defmodule Exmapper.Migration do
     if Enum.count(new_fields) == 0 do
       false
     else
-      alters = fields_to_mysql(new_fields," ",fn(x) -> "ADD #{x[:name]} #{x[:type]} #{x[:opts]}" end)
-      case Exmapper.query("ALTER TABLE #{module.__name__} #{alters}", [], module.repo) do
+      alters = fields_to_mysql(new_fields,",",fn(x) -> "#{x[:name]} #{x[:type]} #{x[:opts]}" end)
+      case Exmapper.query("ALTER TABLE #{module.__name__} ADD (#{alters})", [], module.repo) do
         {:ok, _} ->
           true
         error ->
