@@ -56,6 +56,3 @@ Model.create(Model.new)
 Model.delete(Model.first)
 
 ```
-
-### Todo
- - created_at and updated_at automation with callbacks
