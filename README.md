@@ -16,10 +16,16 @@ defmodule Model do
     field :name, :string
 
     has_many :other_models, OtherModel, through: ModelOtherModel, foreigh_key: :key_id
+
+    before_delete, :before_delete
+    after_delete, &Model.after_delete/1
+    
+    before_create do
+      data
+    end
+
   end
   
-  before_delete, :before_delete
-  after_delete, &Model.after_delete/1
 
   def before_delete(data) do
     Logger.warn inspect data
