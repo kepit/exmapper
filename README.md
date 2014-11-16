@@ -15,7 +15,7 @@ defmodule Model do
   table :models do
     field :name, :string
 
-    has_many :other_models, OtherModel, through: ModelOtherModel, foreigh_key: :key_id
+    has_many :other_models, OtherModel, through: ModelOtherModel, foreign_key: :key_id
 
     before_delete, :before_delete
     after_delete, &Model.after_delete/1
