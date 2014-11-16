@@ -35,19 +35,19 @@ defmodule Exmapper.Migration do
     fields = fields_to_mysql(module.__fields__,", ",fn(x) -> "#{x[:name]} #{x[:type]} #{x[:opts]}" end)
     case Exmapper.query("CREATE TABLE #{module.__name__}(#{fields})", [], module.repo) do
       {:ok, _} ->
-        alter = Enum.join(List.delete(Enum.map(module.__fields__,fn({key,val}) ->
+        alter = Enum.join(Enum.reject(Enum.map(module.__fields__,fn({key,val}) ->
                                                  if val[:opts][:foreign_key] == true do
                                                    mod = val[:opts][:mod]
                                                    table = mod.__name__
-                                                   "ADD CONSTRAINT #{module.__name__}_to_#{table} FOREIGN KEY (#{key}) REFERENCES #{table} (id) ON UPDATE CASCADE ON DELETE CASCADE"
+                                                   "CONSTRAINT #{module.__name__}_to_#{table} FOREIGN KEY (#{key}) REFERENCES #{table} (id) ON UPDATE CASCADE ON DELETE CASCADE"
                                                  else
                                                    nil
                                                  end
-                                               end),nil)," ")
+                                               end),&(is_nil(&1))),", ")
         if alter == "" do
           true
         else
-          case Exmapper.query("ALTER TABLE #{module.__name__} #{alter}", [], module.repo) do
+          case Exmapper.query("ALTER TABLE #{module.__name__} ADD (#{alter})", [], module.repo) do
             {:ok, _} ->
               true
             error ->
