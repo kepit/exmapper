@@ -138,9 +138,10 @@ defmodule Exmapper.Model do
           {:ok, args} ->
             args = Enum.reject(
               Enum.map(Map.from_struct(args),fn({key,val}) ->
-                         if __fields__[key][:opts][:required] == true && val == nil && key != :id, do: raise("Field #{key} is required!")
-                         case Exmapper.is_virtual_type(__fields__[key][:type]) do
-                           false -> Exmapper.Field.Transform.encode(__fields__[key][:type], key, val)
+                         field = __fields__[key]
+                         if field[:opts][:required] == true && val == nil && key != :id, do: raise("Field #{key} is required!")
+                         case Exmapper.is_virtual_type(field[:type]) do
+                           false -> Exmapper.Field.Transform.encode(field[:type], key, val)
                            true -> nil
                          end
                        end),fn(x) -> is_nil(x) end)
