@@ -142,9 +142,32 @@ defmodule Exmapper.Model do
       def drop, do: Exmapper.Migration.drop(__MODULE__)
 
       def to_keywords(value), do: Exmapper.to_keywords(value)
+      def result_to_keywords(value) do
+        Enum.map value, fn(v) ->
+          Keyword.new(v, fn({x,y}) -> {String.to_atom(x),y} end)
+        end
+      end
 
       def query({query,args}), do: query(query, args)
       def query(query, args), do: Exmapper.query(query, args, @repo)
+      def query!({query,args}), do: query!(query, args)
+      def query!(query, args) do
+        {:ok, data} = query(query, args)
+        data
+      end
+
+      def execute(sql, args \\ []) do
+        {state, data} = query(sql, args)
+        if state == :ok do
+          {:ok, data |> result_to_keywords}
+        else
+          {state, data}
+        end
+      end
+
+      def execute!(sql, args \\ []) do
+        query!(sql, args) |> result_to_keywords
+      end
 
       def all(args \\ []), do: select("*", table_name, args, "id ASC") |> query |> to_new
       def count(args \\ []), do: select("COUNT(*)", table_name, args) |> query |> elem(1) |> List.first |> List.first |> elem(1)
