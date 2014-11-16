@@ -6,15 +6,19 @@ defmodule Exmapper.Model do
     alias Exmapper.Field
 
     defmacro before_callback(cmd,fun) do
-      quote do
-        befores = Module.get_attribute(__MODULE__,:befores)
-        Module.put_attribute(__MODULE__,:befores,Keyword.put(befores,:"#{unquote(cmd)}",befores[:"#{unquote(cmd)}"]++[unquote(fun)]))
+      if is_function(fun) or is_atom(fun) do
+        quote do
+          befores = Module.get_attribute(__MODULE__,:befores)
+          Module.put_attribute(__MODULE__,:befores,Keyword.put(befores,:"#{unquote(cmd)}",befores[:"#{unquote(cmd)}"]++[unquote(fun)]))
+        end
       end
     end
     defmacro after_callback(cmd,fun) do
-      quote do
-        afters = Module.get_attribute(__MODULE__,:afters)
-        Module.put_attribute(__MODULE__,:afters,Keyword.put(afters,:"#{unquote(cmd)}",afters[:"#{unquote(cmd)}"]++[unquote(fun)]))
+      if is_function(fun) or is_atom(fun) do
+        quote do
+          afters = Module.get_attribute(__MODULE__,:afters)
+          Module.put_attribute(__MODULE__,:afters,Keyword.put(afters,:"#{unquote(cmd)}",afters[:"#{unquote(cmd)}"]++[unquote(fun)]))
+        end
       end
     end
       
@@ -90,16 +94,13 @@ defmodule Exmapper.Model do
       end
 
       def run_callbacks(callbacks, type, args) do
-        if callbacks[type] != nil do 
-          cb = callbacks[type]
-          if is_atom(cb) do
-            apply(__MODULE__, cb, [args])
-          else
-            callbacks[type].(args)
+        ret = Enum.reduce callbacks[type], args, fn(cb, acc) ->
+          case cb do
+            callback when is_atom(callback) -> apply(__MODULE__, callback, [acc])
+            callback -> callback.(acc)
           end
-        else
-          {:ok, args}
         end
+        {:ok, ret}
       end
       
       defp table_name() do
@@ -116,7 +117,6 @@ defmodule Exmapper.Model do
         nil
       end
 
-      
       def migrate, do: Exmapper.Migration.migrate(__MODULE__)
       def upgrade, do: Exmapper.Migration.upgrade(__MODULE__)
       def drop, do: Exmapper.Migration.drop(__MODULE__)

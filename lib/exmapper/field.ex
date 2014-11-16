@@ -8,6 +8,35 @@ defmodule Exmapper.Field do
       Module.put_attribute(__MODULE__,:fields,fields++field++setter_field)
     end
   end
+
+  defmacro timestamps(type, opts \\ []) do
+    quote do
+      field :created_at, unquote(type)
+      field :updated_at, unquote(type)
+
+      before_create :__timestamps_callback_create
+      before_update :__timestamps_callback_update
+
+      def __timestamps_callback_create(data) do
+        field_type = __fields__[:created_at][:type]
+        ret = case field_type do
+          :integer -> data.created_at!.(Timex.Date.convert(Timex.Date.local, :secs))
+          :datetime -> data.created_at!.(Timex.Date.local)
+          _ -> data
+        end
+        __timestamps_callback_update(ret)
+      end
+
+      def __timestamps_callback_update(data) do
+        field_type = __fields__[:updated_at][:type]
+        case field_type do
+          :integer -> data.updated_at!.(Timex.Date.convert(Timex.Date.local, :secs))
+          :datetime -> data.updated_at!.(Timex.Date.local)
+          _ -> data
+        end
+      end
+    end
+  end
   
   defmacro belongs_to(name,mod,opts \\ []) do
     quote do
