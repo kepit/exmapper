@@ -13,7 +13,7 @@ defmodule Exmapper.Model do
         end
       else
         random = Exmapper.Utils.SecureRandom.hex(16)
-        fun_name = String.to_atom("__exmapper_before_callback_#{random}")
+        fun_name = String.to_atom("__exmapper_before_callback_#{random}__")
         quote do
           def unquote(fun_name)(var!(data)) do
             unquote(fun[:do])
@@ -23,6 +23,7 @@ defmodule Exmapper.Model do
         
       end
     end
+
     defmacro after_callback(cmd,fun) do
       if is_function(fun) or is_atom(fun) do
         quote do
@@ -31,7 +32,7 @@ defmodule Exmapper.Model do
         end
       else
         random = Exmapper.Utils.SecureRandom.hex(16)
-        fun_name = String.to_atom("__exmapper_after_callback_#{random}")
+        fun_name = String.to_atom("__exmapper_after_callback_#{random}__")
         quote do
           def unquote(fun_name)(var!(data)) do
             unquote(fun[:do])
