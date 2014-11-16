@@ -56,6 +56,10 @@ defmodule Exmapper.Field do
       {key, :undefined}
     end
 
+    def encode(_ ,key, val) when is_nil(val) do
+      {key, :undefined}
+    end
+
     def encode(_, key, val) do
       { key, val } 
     end
@@ -77,6 +81,10 @@ defmodule Exmapper.Field do
       else
         val
       end
+    end
+
+    def decode(_, _, _, _, :undefined) do
+      nil
     end
 
     def decode(:string, _, _, _, :undefined) do
