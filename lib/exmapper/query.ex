@@ -22,7 +22,14 @@ defmodule Exmapper.Query do
       end
 
 
-      defp where_transform("in", value), do: ["IN","(" <> Enum.join(Enum.map(value, fn(_v) -> "?" end),",") <> ")", value]
+      defp where_transform(type, value) when type in ["in"] and is_map(value) do 
+          {select_sql, select_args} = select(value.select, value.from, value.where)
+          [type,"(" <> select_sql <> ")", select_args]
+      end
+      defp where_transform(type, value) when type in ["in"] and is_list(value) do 
+          [type,"(" <> Enum.join(Enum.map(value, fn(_v) -> "?" end),",") <> ")", value]
+      end
+
       defp where_transform("gt", value), do: [">","?", value]
       defp where_transform("gte", value), do: [">=","?", value]
       defp where_transform("lt", value), do: ["<","?", value]
@@ -30,7 +37,7 @@ defmodule Exmapper.Query do
       defp where_transform("like", value), do: ["LIKE","?", value]
       defp where_transform(_, value), do: ["=","?", value]
       
-      def select(what, table, args, default_order_by \\ "") do
+      defp select(what, table, args, default_order_by \\ "") do
         if what == "", do: what = "*"
           
         {order_by_sql, order_by_args} = order_by(args)
@@ -49,7 +56,7 @@ defmodule Exmapper.Query do
         {sql, sql_args}
       end
 
-      def where(args \\ []) do
+      defp where(args \\ []) do
         if Enum.count(args) > 0 do
           {ret, values} = Enum.map_reduce args, [], fn({key,value}, acc) ->
             key = Atom.to_string(key)
@@ -64,7 +71,7 @@ defmodule Exmapper.Query do
         end
       end
       
-      def limit(args \\ []) do
+      defp limit(args \\ []) do
         if Keyword.has_key?(args,:limit) do
           if is_integer(args[:limit]) do 
           {"LIMIT ?",[args[:limit]]}
@@ -76,7 +83,7 @@ defmodule Exmapper.Query do
         end
       end
       
-      def order_by(args \\ []) do
+      defp order_by(args \\ []) do
         if Keyword.has_key?(args,:order_by) do
           if args[:order_by] != "" && is_binary(args[:order_by]) do
             {"ORDER BY " <> args[:order_by],[]}
