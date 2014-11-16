@@ -105,7 +105,9 @@ defmodule Exmapper.Field do
            if through != nil do
              assoc_args = query |>
                Keyword.put(:order_by, Atom.to_string(foreign_key))
-             assoc = through.all(assoc_args)
+             through_args = []
+             if is_list(args) && is_list(args[:through!]), do: through_args = args[:through!]
+             assoc = through.all(assoc_args++through_args)
              assoc_mod_id = Exmapper.module_to_id(mod)
              ids = Enum.map assoc, fn(a) ->
                Map.get(a,assoc_mod_id)
@@ -123,6 +125,7 @@ defmodule Exmapper.Field do
              type = args
              args = query
            end
+           args = Keyword.delete(args, :through!)
            result = apply(mod, type, [args])
            if through != nil do
              id = cond do
@@ -130,7 +133,7 @@ defmodule Exmapper.Field do
                type in [:"create!", :"update!"] -> result.id
                true -> nil
              end
-             unless is_nil(id), do: through.create("#{Exmapper.module_to_id(mod)}": id, "#{foreign_key}": params[:id])
+             unless is_nil(id), do: through.create(["#{Exmapper.module_to_id(mod)}": id, "#{foreign_key}": params[:id]]++through_args)
            end
            result
          end)

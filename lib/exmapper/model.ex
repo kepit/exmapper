@@ -6,10 +6,16 @@ defmodule Exmapper.Model do
     alias Exmapper.Field
 
     defmacro before_callback(cmd,fun) do
-      quote do: Module.put_attribute(__MODULE__,:befores,Keyword.put(Module.get_attribute(__MODULE__,:befores),:"#{unquote(cmd)}",unquote(fun)))
+      quote do
+        befores = Module.get_attribute(__MODULE__,:befores)
+        Module.put_attribute(__MODULE__,:befores,Keyword.put(befores,:"#{unquote(cmd)}",befores[:"#{unquote(cmd)}"]++[unquote(fun)]))
+      end
     end
     defmacro after_callback(cmd,fun) do
-      quote do: Module.put_attribute(__MODULE__,:afters,Keyword.put(Module.get_attribute(__MODULE__,:afters),:"#{unquote(cmd)}",unquote(fun)))
+      quote do
+        afters = Module.get_attribute(__MODULE__,:afters)
+        Module.put_attribute(__MODULE__,:afters,Keyword.put(afters,:"#{unquote(cmd)}",afters[:"#{unquote(cmd)}"]++[unquote(fun)]))
+      end
     end
       
     defmacro before_create(fun), do: quote do: before_callback(:create, unquote(fun))
@@ -29,8 +35,8 @@ defmodule Exmapper.Model do
         use Timex
 
         @fields []
-        @befores [delete: nil, create: nil, update: nil]
-        @afters [delete: nil, create: nil, update: nil]
+        @befores [delete: [], create: [], update: []]
+        @afters [delete: [], create: [], update: []]
         @name unquote(name)
 
         use Exmapper.Query, @name
@@ -131,6 +137,15 @@ defmodule Exmapper.Model do
       def create(args) when is_map(args), do: create_or_update(:create, Map.merge(new(), args), {"",[]})
       
       def update!(args), do: elem(update(args),1)
+      def update(args) when is_list(args) do
+        struct = get(args[:id])
+        if is_nil(struct), do: raise("Entry not found")
+        args = Keyword.delete(args,:id)
+        update(Enum.reduce(Map.from_struct(struct), struct, fn({key,val},acc) ->
+                                          unless(is_nil(args[key]), do: acc = Map.put(acc, key, args[key]))
+                                          acc
+                                        end))
+      end
       def update(args) when is_map(args), do: create_or_update(:update, args, where(id: args.id))
 
       defp create_or_update(type, args, where \\ {"",[]}) do
