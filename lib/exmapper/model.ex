@@ -199,7 +199,7 @@ defmodule Exmapper.Model do
                          field = __fields__[key]
                          if field[:opts][:required] == true && val == nil && key != :id, do: raise("Field #{key} is required!")
                          case Exmapper.is_virtual_type(field[:type]) do
-                           false -> Exmapper.Field.Transform.encode(field[:type], key, val)
+                           false -> Exmapper.Field.Transform.encode(field[:type], key, val, field)
                            true -> nil
                          end
                        end),fn(x) -> is_nil(x) end)

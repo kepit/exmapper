@@ -4,12 +4,12 @@ defmodule Exmapper.Field do
     quote do
       fields = Module.get_attribute(__MODULE__,:fields)
       field = Keyword.new([{unquote(name), [name: unquote(name), type: unquote(type), opts: unquote(opts)]}])
-      setter_field = Keyword.new([{:"#{unquote(name)}!", [name: unquote(name), type: :setter, opts: [mod: __MODULE__, original_type: unquote(type)]]}])
+      setter_field = Keyword.new([{:"#{unquote(name)}!", [name: unquote(name), type: :setter, opts: [mod: __MODULE__, original_type: unquote(type), original_opts: unquote(opts)]]}])
       Module.put_attribute(__MODULE__,:fields,fields++field++setter_field)
     end
   end
 
-  defmacro timestamps(type, opts \\ []) do
+  defmacro timestamps(type, _opts \\ []) do
     quote do
       field :created_at, unquote(type)
       field :updated_at, unquote(type)
@@ -61,7 +61,7 @@ defmodule Exmapper.Field do
 
   defmodule Transform do
 
-    def encode(:boolean, key, val) do
+    def encode(:boolean, key, val, _) do
       retval = case val == true do
         true -> 1
         false -> 0
@@ -69,34 +69,42 @@ defmodule Exmapper.Field do
       {key, retval}
     end
 
-    def encode(:datetime, key, val) do
+    def encode(:datetime, key, val, _) do
       {key, {{val[:year],val[:month],val[:day]},{val[:hour],val[:minute],val[:second]}}}
     end
 
-    def encode(:json, key, val) when is_map(val) do
+    def encode(:json, key, val, _) when is_map(val) do
       {key, JSEX.encode!(val)}
     end
 
-    def encode(:string, key, val) when is_nil(val) do
+    def encode(:enum, key, val, field) when is_atom(val) do
+      enums = field[:opts][:values]
+      retval = Enum.find_index(enums, fn(x) -> x == val end)
+      {key, retval}
+    end
+
+    def encode(:string, key, val, _) when is_nil(val) do
       {key, :undefined}
     end
 
-    def encode(:text, key, val) when is_nil(val) do
+    def encode(:text, key, val, _) when is_nil(val) do
       {key, :undefined}
     end
 
-    def encode(_ ,key, val) when is_nil(val) do
+
+    def encode(_ ,key, val, _) when is_nil(val) do
       {key, :undefined}
     end
 
-    def encode(_, key, val) do
+    def encode(_, key, val, _) do
       { key, val } 
     end
+
 
     def decode(:setter, params, field, _key, _val) do
       fn(new_val) ->
         mod = field[:opts][:mod]
-        mod.new(Keyword.put(params, field[:name], encode(field[:opts][:original_type],field[:name],new_val) |> elem(1)))
+        mod.new(Keyword.put(params, field[:name], encode( field[:opts][:original_type],field[:name],new_val, [name: field[:name], type: field[:opts][:original_type], opts: field[:opts][:original_opts]]) |> elem(1)))
       end
     end
 
@@ -123,6 +131,16 @@ defmodule Exmapper.Field do
     def decode(:text, _, _, _, :undefined) do
       nil
     end
+
+    def decode(:enum, _params, field, _key, val) when is_integer(val) do
+      enums = field[:opts][:values]
+      Enum.at(enums, val, nil)
+    end
+
+    def decode(:enum, _params, _field, _key, val) when is_atom(val) do
+      val
+    end
+
     
     def decode(:has_many, params, field, _key, val) do
       if params[:id] != nil do
