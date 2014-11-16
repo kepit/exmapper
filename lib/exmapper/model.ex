@@ -120,11 +120,14 @@ defmodule Exmapper.Model do
 
       def to_keywords(value), do: Exmapper.to_keywords(value)
 
-      def all(args \\ []), do: select("*", table_name, args, "id ASC") |> Exmapper.query(@repo) |> to_new
-      def count(args \\ []), do: select("COUNT(*)", table_name, args) |> Exmapper.query(@repo) |> elem(1) |> List.first |> List.first |> elem(1)
-      def first(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],args), "id ASC") |> Exmapper.query(@repo) |> to_new |> List.first
-      def last(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],args), "id DESC") |> Exmapper.query(@repo) |> to_new |> List.first
-      def get(id), do: select("*", table_name, [id: id]) |> Exmapper.query(@repo) |> to_new |> List.first
+      def query({query,args}), do: query(query, args)
+      def query(query, args), do: Exmapper.query(query, args, @repo)
+
+      def all(args \\ []), do: select("*", table_name, args, "id ASC") |> query |> to_new
+      def count(args \\ []), do: select("COUNT(*)", table_name, args) |> query |> elem(1) |> List.first |> List.first |> elem(1)
+      def first(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],args), "id ASC") |> query |> to_new |> List.first
+      def last(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],args), "id DESC") |> query |> to_new |> List.first
+      def get(id), do: select("*", table_name, [id: id]) |> query |> to_new |> List.first
       
       def create!(args), do: elem(create(args),1)
       def create(args) when is_list(args), do: create_or_update(:create, new(args), {"",[]})
@@ -144,7 +147,7 @@ defmodule Exmapper.Model do
                            true -> nil
                          end
                        end),fn(x) -> is_nil(x) end)
-            case Exmapper.query(generate_query(type, args, where), @repo) do
+            case query(generate_query(type, args, where)) do
               {:ok, data} ->
                 id = data[:insert_id]
                 if id == 0 && !is_nil(args[:id]), do: id = args[:id]
@@ -165,7 +168,7 @@ defmodule Exmapper.Model do
       def delete(args) when is_map(args) do
         case run_callbacks(__MODULE__.__befores__, :delete, args) do
           {:ok, args} ->
-            case Exmapper.query(generate_query(:delete, where(id: args.id)), @repo) do
+            case query(generate_query(:delete, where(id: args.id))) do
               {:ok, _} ->
                 run_callbacks(__MODULE__.__afters__, :delete, args)
                 {:ok, :success}
