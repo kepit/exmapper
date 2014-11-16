@@ -11,6 +11,16 @@ defmodule Exmapper.Model do
           befores = Module.get_attribute(__MODULE__,:befores)
           Module.put_attribute(__MODULE__,:befores,Keyword.put(befores,:"#{unquote(cmd)}",befores[:"#{unquote(cmd)}"]++[unquote(fun)]))
         end
+      else
+        random = Exmapper.Utils.SecureRandom.hex(16)
+        fun_name = String.to_atom("__exmapper_before_callback_#{random}")
+        quote do
+          def unquote(fun_name)(var!(data)) do
+            unquote(fun[:do])
+          end
+          before_callback(unquote(cmd), unquote(fun_name))
+        end
+        
       end
     end
     defmacro after_callback(cmd,fun) do
@@ -18,6 +28,15 @@ defmodule Exmapper.Model do
         quote do
           afters = Module.get_attribute(__MODULE__,:afters)
           Module.put_attribute(__MODULE__,:afters,Keyword.put(afters,:"#{unquote(cmd)}",afters[:"#{unquote(cmd)}"]++[unquote(fun)]))
+        end
+      else
+        random = Exmapper.Utils.SecureRandom.hex(16)
+        fun_name = String.to_atom("__exmapper_after_callback_#{random}")
+        quote do
+          def unquote(fun_name)(var!(data)) do
+            unquote(fun[:do])
+          end
+          before_callback(unquote(cmd), unquote(fun_name))
         end
       end
     end
