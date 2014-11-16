@@ -1,7 +1,7 @@
 ExMapper
 ========
 
-Elixir database wrapper
+Elixir MySQL database library
 
 ### Connect
 ```
