@@ -172,8 +172,12 @@ defmodule Exmapper.Field do
     end
 
     def decode(:json, _params, _field, _key, val) do
-      {_, data} = JSEX.decode(val)
-      data
+      case val do
+        nil -> nil
+        _ ->
+          {_, data} = JSEX.decode(val)
+          data
+      end
     end
 
     def decode(:boolean, _params, _field, _key, val) do
