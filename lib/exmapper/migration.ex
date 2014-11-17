@@ -33,7 +33,7 @@ defmodule Exmapper.Migration do
 
   def migrate(module) do
     fields = fields_to_mysql(module.__fields__,", ",fn(x) -> "#{x[:name]} #{x[:type]} #{x[:opts]}" end)
-    case Exmapper.query("CREATE TABLE #{module.__name__}(#{fields})", [], module.repo) do
+    case Exmapper.Adapter.query("CREATE TABLE #{module.__name__}(#{fields})", [], module.repo) do
       {:ok, _} ->
         alter = Enum.join(Enum.reject(Enum.map(module.__fields__,fn({key,val}) ->
                                                  if val[:opts][:foreign_key] == true do
@@ -47,7 +47,7 @@ defmodule Exmapper.Migration do
         if alter == "" do
           true
         else
-          case Exmapper.query("ALTER TABLE #{module.__name__} ADD (#{alter})", [], module.repo) do
+          case Exmapper.Adapter.query("ALTER TABLE #{module.__name__} ADD (#{alter})", [], module.repo) do
             {:ok, _} ->
               true
             error ->
@@ -62,13 +62,13 @@ defmodule Exmapper.Migration do
   end
 
   def upgrade(module) do
-    old_fields = Enum.map(Exmapper.query("SHOW COLUMNS FROM #{module.__name__}", [], module.repo) |> elem(1), fn(x) -> String.to_atom(elem(List.first(x),1)) end)
+    old_fields = Enum.map(Exmapper.Adapter.query("SHOW COLUMNS FROM #{module.__name__}", [], module.repo) |> elem(1), fn(x) -> String.to_atom(elem(List.first(x),1)) end)
     new_fields = Enum.reject(module.__fields__,fn({k,v}) -> Enum.member?(old_fields,k) || Exmapper.Utils.is_virtual_type(v[:type])  end)
     if Enum.count(new_fields) == 0 do
       false
     else
       alters = fields_to_mysql(new_fields,",",fn(x) -> "#{x[:name]} #{x[:type]} #{x[:opts]}" end)
-      case Exmapper.query("ALTER TABLE #{module.__name__} ADD (#{alters})", [], module.repo) do
+      case Exmapper.Adapter.query("ALTER TABLE #{module.__name__} ADD (#{alters})", [], module.repo) do
         {:ok, _} ->
           true
         error ->
@@ -79,7 +79,7 @@ defmodule Exmapper.Migration do
   end
 
   def drop(module) do
-    case Exmapper.query("DROP TABLE #{module.__name__}", [], module.repo) do
+    case Exmapper.Adapter.query("DROP TABLE #{module.__name__}", [], module.repo) do
       {:ok, _} -> true
       error ->
         Logger.info inspect error

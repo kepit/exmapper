@@ -108,7 +108,6 @@ defmodule Exmapper.Model do
       repo = :default
       unless is_nil(unquote(opts)[:repo]), do: repo = unquote(opts)[:repo]
       @repo repo
-
       def repo do
         @repo
       end
@@ -149,7 +148,7 @@ defmodule Exmapper.Model do
       end
 
       def query({query,args}), do: query(query, args)
-      def query(query, args), do: Exmapper.query(query, args, @repo)
+      def query(query, args), do: Exmapper.Adapter.query(query, args, @repo)
       def query!({query,args}), do: query!(query, args)
       def query!(query, args) do
         {:ok, data} = query(query, args)
