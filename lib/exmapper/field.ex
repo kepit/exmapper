@@ -14,10 +14,10 @@ defmodule Exmapper.Field do
       field :created_at, unquote(type)
       field :updated_at, unquote(type)
 
-      before_create :__timestamps_callback_create
-      before_update :__timestamps_callback_update
+      before_create :__timestamps_callback_create__
+      before_update :__timestamps_callback_update__
 
-      def __timestamps_callback_create(data) do
+      def __timestamps_callback_create__(data) do
         field_type = __fields__[:created_at][:type]
         ret = case field_type do
           :integer -> data.created_at!.(Timex.Date.convert(Timex.Date.local, :secs))
@@ -27,7 +27,7 @@ defmodule Exmapper.Field do
         __timestamps_callback_update(ret)
       end
 
-      def __timestamps_callback_update(data) do
+      def __timestamps_callback_update__(data) do
         field_type = __fields__[:updated_at][:type]
         case field_type do
           :integer -> data.updated_at!.(Timex.Date.convert(Timex.Date.local, :secs))
