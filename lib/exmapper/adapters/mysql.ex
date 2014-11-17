@@ -1,4 +1,4 @@
-defmodule Exmapper.Mysql do
+defmodule Exmapper.Adapters.Mysql do
 
   def connect(params) do
     user = params[:username]

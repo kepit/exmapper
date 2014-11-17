@@ -2,7 +2,7 @@ defmodule Exmapper do
   require Logger
 
   def adapter do
-    Exmapper.Mysql
+    Exmapper.Adapters.Mysql
   end
 
   def connect(params) do
