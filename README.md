@@ -15,7 +15,7 @@ defmodule Model do
   table :models do
     field :name, :string
 
-    has_many :other_models, OtherModel, through: ModelOtherModel, foreigh_key: :key_id
+    has_many :other_models, OtherModel, through: ModelOtherModel, foreign_key: :key_id
 
     before_delete, :before_delete
     after_delete, &Model.after_delete/1
@@ -42,9 +42,8 @@ end
 Model.migrate # Migrate table
 Model.upgrade # Upgrade table
 Model.drop # Drop table
-Model.to_keywords(Model.new) # Convert Map to keyword
 
-Model.all
+Model.all 
 Model.all(id: 1)
 Model.all("id.gte": 1) # Greater than 1
 Model.all(limit: 2) # LIMIT 2
