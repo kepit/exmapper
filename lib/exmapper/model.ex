@@ -141,7 +141,7 @@ defmodule Exmapper.Model do
       def upgrade, do: Exmapper.Migration.upgrade(__MODULE__)
       def drop, do: Exmapper.Migration.drop(__MODULE__)
 
-      def to_keywords(value), do: Exmapper.to_keywords(value)
+      def to_keywords(value), do: Exmapper.Utils.to_keywords(value)
       def result_to_keywords(value) do
         Enum.map value, fn(v) ->
           Keyword.new(v, fn({x,y}) -> {String.to_atom(x),y} end)
@@ -198,7 +198,7 @@ defmodule Exmapper.Model do
               Enum.map(Map.from_struct(args),fn({key,val}) ->
                          field = __fields__[key]
                          if field[:opts][:required] == true && val == nil && key != :id, do: raise("Field #{key} is required!")
-                         case Exmapper.is_virtual_type(field[:type]) do
+                         case Exmapper.Utils.is_virtual_type(field[:type]) do
                            false -> Exmapper.Field.Transform.encode(field[:type], key, val, field)
                            true -> nil
                          end

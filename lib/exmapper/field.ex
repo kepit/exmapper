@@ -24,7 +24,7 @@ defmodule Exmapper.Field do
           :datetime -> data.created_at!.(Timex.Date.local)
           _ -> data
         end
-        __timestamps_callback_update(ret)
+        __timestamps_callback_update__(ret)
       end
 
       def __timestamps_callback_update__(data) do
@@ -51,7 +51,7 @@ defmodule Exmapper.Field do
   
   defmacro has_many(name,mod, opts \\ []) do
     quote do
-      foreign_key = unquote(opts[:foreign_key]) || Exmapper.module_to_id(__MODULE__)
+      foreign_key = unquote(opts[:foreign_key]) || Exmapper.Utils.module_to_id(__MODULE__)
       field = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :has_many, opts: unquote(opts) ++ [foreign_key: foreign_key, mod: unquote(mod)]]}])
       fields = Module.get_attribute(__MODULE__,:fields)
       Module.put_attribute(__MODULE__,:fields,fields++field)
@@ -155,7 +155,7 @@ defmodule Exmapper.Field do
              through_args = []
              if is_list(args) && is_list(args[:through!]), do: through_args = args[:through!]
              assoc = through.all(assoc_args++through_args)
-             assoc_mod_id = Exmapper.module_to_id(mod)
+             assoc_mod_id = Exmapper.Utils.module_to_id(mod)
              ids = Enum.map assoc, fn(a) ->
                Map.get(a,assoc_mod_id)
              end
@@ -180,7 +180,7 @@ defmodule Exmapper.Field do
                type in [:"create!", :"update!"] -> result.id
                true -> nil
              end
-             unless is_nil(id), do: through.create(["#{Exmapper.module_to_id(mod)}": id, "#{foreign_key}": params[:id]]++through_args)
+             unless is_nil(id), do: through.create(["#{Exmapper.Utils.module_to_id(mod)}": id, "#{foreign_key}": params[:id]]++through_args)
            end
            result
          end)

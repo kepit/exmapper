@@ -6,7 +6,7 @@ defmodule Exmapper.Migration do
   
   defp fields_to_mysql(collection,joiner,fun) do
     Enum.join(Enum.reject(Enum.map(collection,fn({key,val}) ->
-                                     if !Exmapper.is_virtual_type(val[:type]) do
+                                     if !Exmapper.Utils.is_virtual_type(val[:type]) do
                                        default = ""
                                        primary_key = ""
                                        auto_increment = ""
@@ -63,7 +63,7 @@ defmodule Exmapper.Migration do
 
   def upgrade(module) do
     old_fields = Enum.map(Exmapper.query("SHOW COLUMNS FROM #{module.__name__}", [], module.repo) |> elem(1), fn(x) -> String.to_atom(elem(List.first(x),1)) end)
-    new_fields = Enum.reject(module.__fields__,fn({k,v}) -> Enum.member?(old_fields,k) || Exmapper.is_virtual_type(v[:type])  end)
+    new_fields = Enum.reject(module.__fields__,fn({k,v}) -> Enum.member?(old_fields,k) || Exmapper.Utils.is_virtual_type(v[:type])  end)
     if Enum.count(new_fields) == 0 do
       false
     else
