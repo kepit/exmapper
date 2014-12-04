@@ -37,7 +37,7 @@ defmodule Exmapper.Model do
           def unquote(fun_name)(var!(data)) do
             unquote(fun[:do])
           end
-          before_callback(unquote(cmd), unquote(fun_name))
+          after_callback(unquote(cmd), unquote(fun_name))
         end
       end
     end
