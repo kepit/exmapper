@@ -59,19 +59,32 @@ defmodule Exmapper.Query do
         {sql, sql_args}
       end
 
-      defp where(args \\ []) do
-        if Enum.count(args) > 0 do
-          {ret, values} = Enum.map_reduce args, [], fn({key,value}, acc) ->
-            key = Atom.to_string(key)
-            oper = List.last(String.split(key,"."))
-            key = String.replace(key, ".#{oper}","")
-            [mark, qm , value] = where_transform(oper, value)
-            { "#{key} #{mark} #{qm}", acc ++ [value]}
+      defp build_where([], "AND"), do: {"", []}
+      defp build_where([], "OR"), do: {"", []}
+      defp build_where(args, joiner) do
+        {ret, values} = Enum.map_reduce args, [], fn({key,value}, acc) ->
+          key = Atom.to_string(key)
+          case key do
+            "and" -> 
+              {sql_str, vals} = build_where(value, "AND")
+              {sql_str, acc ++ vals}
+            "or" -> 
+              {sql_str, vals} = build_where(value, "OR")
+              {sql_str, acc ++ vals}
+             _ ->
+              oper = List.last(String.split(key,"."))
+              key = String.replace(key, ".#{oper}","")
+              [mark, qm , value] = where_transform(oper, value)
+              { "#{key} #{mark} #{qm}", acc ++ [value]}
           end
-          {"WHERE " <> (ret |> Enum.join(" AND ")), values}
-        else
-          {"", []}
         end
+        {"(" <> (ret |> Enum.join(" #{joiner} ")) <> ")", values}
+      end
+
+      defp where([]), do: {"",[]}
+      defp where(args) do
+        {where_sql, where_args} = build_where(args, "AND")
+        {"WHERE " <> where_sql, where_args}
       end
       
       defp limit(args \\ []) do
