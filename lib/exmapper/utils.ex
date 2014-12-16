@@ -6,6 +6,16 @@ defmodule Exmapper.Utils do
 
   def is_virtual_type(type), do: (Enum.find([:virtual, :belongs_to, :has_many, :setter],fn(x) -> x == type end) != nil) 
 
+  def keys_to_atom(params) do
+    Enum.map(params,fn({k,v}) ->
+               if is_binary(k) do
+                 {String.to_atom(k),v}
+               else
+                 {k,v}
+               end
+             end)
+  end
+
   def to_keywords(value) do
     if value == nil do
       nil

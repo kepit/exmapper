@@ -1,28 +1,22 @@
 defmodule Exmapper.Model do
-  require Exmapper.Field
+  import Exmapper.Query
 
   defmacro __using__(opts) do
     quote do
-      import Exmapper.Table
+      require Exmapper.Field
+      import Exmapper.Schema
       require Logger
+      use Timex
+
+      use Exmapper.Callbacks
 
       repo = :default
       unless is_nil(unquote(opts)[:repo]), do: repo = unquote(opts)[:repo]
       @repo repo
       def repo, do: @repo
 
-      def run_callbacks(callbacks, type, args) do
-        ret = Enum.reduce callbacks[type], args, fn(cb, acc) ->
-          case cb do
-            callback when is_atom(callback) -> apply(__MODULE__, callback, [acc])
-            callback -> callback.(acc)
-          end
-        end
-        {:ok, ret}
-      end
-
       defp table_name() do
-        Atom.to_string(__name__)
+        Atom.to_string(__table_name__)
       end
 
       defp to_new(args) when is_tuple(args) do
@@ -33,6 +27,16 @@ defmodule Exmapper.Model do
       end
       defp to_new(args) when is_nil(args) do
         nil
+      end
+
+      def new(params \\ []) do
+        params = Exmapper.Utils.keys_to_atom(params)
+        Enum.reduce Map.to_list(__struct__), __struct__, fn({key,val}, acc) ->
+          field = __fields__[key]
+          unless is_nil(params[key]), do: val = params[key]
+          data = Exmapper.Field.Transform.decode(field[:type], params, field, key, val)
+          Map.put(acc,key,data)
+        end
       end
 
       def migrate, do: Exmapper.Migration.migrate(__MODULE__)
@@ -68,7 +72,6 @@ defmodule Exmapper.Model do
         query!(sql, args) |> result_to_keywords
       end
 
-
       def all(args \\ []), do: select("*", table_name, args, "id ASC") |> query |> to_new
       def count(args \\ []), do: select("COUNT(*)", table_name, args) |> query |> elem(1) |> List.first |> List.first |> elem(1)
       def first(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],args), "id ASC") |> query |> to_new |> List.first
@@ -94,7 +97,7 @@ defmodule Exmapper.Model do
 
 
       defp create_or_update(type, args, where \\ {"",[]}) do
-        case run_callbacks(__MODULE__.__before_callbacks__, type, args) do
+        case run_callbacks(__MODULE__, __MODULE__.__before_callbacks__, type, args) do
           {:ok, args} ->
             args = Enum.reject(
               Enum.map(Map.from_struct(args),fn({key,val}) ->
@@ -105,12 +108,13 @@ defmodule Exmapper.Model do
                            true -> nil
                          end
                        end),fn(x) -> is_nil(x) end)
-            case query(generate_query(type, args, where)) do
+
+            case query(build_query(type, table_name, args, where)) do
               {:ok, data} ->
                 id = data[:insert_id]
                 if id == 0 && !is_nil(args[:id]), do: id = args[:id]
                 data = get(id)
-                run_callbacks(__MODULE__.__after_callbacks__, type, data)
+                run_callbacks(__MODULE__, __MODULE__.__after_callbacks__, type, data)
                 {:ok, data}
               error ->
                 Logger.info inspect error
@@ -124,11 +128,11 @@ defmodule Exmapper.Model do
       def delete(args) when is_list(args), do: delete(first(args))
       def delete(args) when is_nil(args), do: {:error, :not_found}
       def delete(args) when is_map(args) do
-        case run_callbacks(__MODULE__.__before_callbacks__, :delete, args) do
+        case run_callbacks(__MODULE__, __MODULE__.__before_callbacks__, :delete, args) do
           {:ok, args} ->
-            case query(generate_query(:delete, where(id: args.id))) do
+            case query(build_query(:delete, table_name,  where(id: args.id))) do
               {:ok, _} ->
-                run_callbacks(__MODULE__.__after_callbacks__, :delete, args)
+                run_callbacks(__MODULE__, __MODULE__.__after_callbacks__, :delete, args)
                 {:ok, :success}
               error ->
                 Logger.info inspect error
