@@ -45,15 +45,15 @@ defmodule Exmapper.Query do
   defp build_where([], "OR"), do: {"", []}
   defp build_where(args, joiner) do
     {ret, values} = Enum.map_reduce args, [], fn({key,value}, acc) ->
-      key = Atom.to_string(key)
       case key do
-        "and" -> 
+        :and -> 
           {sql_str, vals} = build_where(value, "AND")
           {sql_str, acc ++ vals}
-          "or" -> 
+        :or -> 
           {sql_str, vals} = build_where(value, "OR")
           {sql_str, acc ++ vals}
         _ ->
+          key = Atom.to_string(key)
           oper = List.last(String.split(key,"."))
           key = String.replace(key, ".#{oper}","")
           [mark, qm , value] = where_transform(oper, value)

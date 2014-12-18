@@ -13,21 +13,16 @@ defmodule Exmapper.Model do
       repo = :default
       unless is_nil(unquote(opts)[:repo]), do: repo = unquote(opts)[:repo]
       @repo repo
+
       def repo, do: @repo
 
       defp table_name() do
         Atom.to_string(__table_name__)
       end
 
-      defp to_new(args) when is_tuple(args) do
-        args |> elem(1) |> to_new
-      end
-      defp to_new(args) when is_list(args) do
-        Enum.map args, fn(a) -> new(a) end
-      end
-      defp to_new(args) when is_nil(args) do
-        nil
-      end
+      defp to_new(args) when is_tuple(args), do: args |> elem(1) |> to_new
+      defp to_new(args) when is_list(args), do: Enum.map(args, fn(a) -> new(a) end)
+      defp to_new(args) when is_nil(args), do: nil
 
       def new(params \\ []) do
         params = Exmapper.Utils.keys_to_atom(params)
@@ -68,9 +63,7 @@ defmodule Exmapper.Model do
         end
       end
 
-      def execute!(sql, args \\ []) do
-        query!(sql, args) |> result_to_keywords
-      end
+      def execute!(sql, args \\ []), do: query!(sql, args) |> result_to_keywords
 
       def all(args \\ []), do: select("*", table_name, args, "id ASC") |> query |> to_new
       def count(args \\ []), do: select("COUNT(*)", table_name, args) |> query |> elem(1) |> List.first |> List.first |> elem(1)
@@ -95,9 +88,8 @@ defmodule Exmapper.Model do
       def update(args) when is_map(args), do: create_or_update(:update, args, where(id: args.id))
 
 
-
       defp create_or_update(type, args, where \\ {"",[]}) do
-        case run_callbacks(__MODULE__, __MODULE__.__before_callbacks__, type, args) do
+        case run_callbacks(__MODULE__, :before, type, args) do
           {:ok, args} ->
             args = Enum.reject(
               Enum.map(Map.from_struct(args),fn({key,val}) ->
@@ -114,7 +106,7 @@ defmodule Exmapper.Model do
                 id = data[:insert_id]
                 if id == 0 && !is_nil(args[:id]), do: id = args[:id]
                 data = get(id)
-                run_callbacks(__MODULE__, __MODULE__.__after_callbacks__, type, data)
+                run_callbacks(__MODULE__, :after, type, data)
                 {:ok, data}
               error ->
                 Logger.info inspect error
@@ -128,11 +120,11 @@ defmodule Exmapper.Model do
       def delete(args) when is_list(args), do: delete(first(args))
       def delete(args) when is_nil(args), do: {:error, :not_found}
       def delete(args) when is_map(args) do
-        case run_callbacks(__MODULE__, __MODULE__.__before_callbacks__, :delete, args) do
+        case run_callbacks(__MODULE__, :before, :delete, args) do
           {:ok, args} ->
             case query(build_query(:delete, table_name,  where(id: args.id))) do
               {:ok, _} ->
-                run_callbacks(__MODULE__, __MODULE__.__after_callbacks__, :delete, args)
+                run_callbacks(__MODULE__, :after, :delete, args)
                 {:ok, :success}
               error ->
                 Logger.info inspect error

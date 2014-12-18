@@ -1,5 +1,19 @@
 defmodule Exmapper.Field do
 
+
+  def timestamps_create_callback_integer(data) do
+    data.created_at!.(Timex.Date.convert(Timex.Date.local, :secs)) |> timestamps_update_callback_integer
+  end
+  def timestamps_create_callback_datetime(data) do
+    data.created_at!.(Timex.Date.local) |> timestamps_update_callback_datetime
+  end
+  def timestamps_update_callback_integer(data) do
+    data.updated_at!.(Timex.Date.convert(Timex.Date.local, :secs))
+  end
+  def timestamps_update_callback_datetime(data) do
+    data.updated_at!.(Timex.Date.local)
+  end
+
   defmacro field(name,type \\ :string,opts \\ []) do
     quote do
       fields = Module.get_attribute(__MODULE__,:fields)
@@ -10,31 +24,13 @@ defmodule Exmapper.Field do
   end
 
   defmacro timestamps(type, _opts \\ []) do
+    create_fun = String.to_atom("timestamps_create_callback_#{type}")
+    update_fun = String.to_atom("timestamps_create_callback_#{type}")
     quote do
       field :created_at, unquote(type)
       field :updated_at, unquote(type)
-
-      before_create :__timestamps_callback_create__
-      before_update :__timestamps_callback_update__
-
-      def __timestamps_callback_create__(data) do
-        field_type = __fields__[:created_at][:type]
-        ret = case field_type do
-          :integer -> data.created_at!.(Timex.Date.convert(Timex.Date.local, :secs))
-          :datetime -> data.created_at!.(Timex.Date.local)
-          _ -> data
-        end
-        __timestamps_callback_update__(ret)
-      end
-
-      def __timestamps_callback_update__(data) do
-        field_type = __fields__[:updated_at][:type]
-        case field_type do
-          :integer -> data.updated_at!.(Timex.Date.convert(Timex.Date.local, :secs))
-          :datetime -> data.updated_at!.(Timex.Date.local)
-          _ -> data
-        end
-      end
+      before_create Exmapper.Field, unquote(create_fun)
+      before_update Exmapper.Field, unquote(update_fun)
     end
   end
   
