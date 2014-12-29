@@ -1,2 +1,5 @@
 %{"emysql": {:git, "git://github.com/eonblast/emysql.git", "c7e2103f8b737667f0128802e8de2f0d5ed2fa5c", []},
+  "exjsx": {:git, "git://github.com/talentdeficit/exjsx.git", "e65075686d53f7efacd1deb3f87a921ec2d39316", []},
+  "json": {:git, "git://github.com/kepit/json.git", "e0923fb9df699f754dcaa35df5223943920bf7ad", []},
+  "jsx": {:package, "2.4.0"},
   "timex": {:package, "0.13.0"}}

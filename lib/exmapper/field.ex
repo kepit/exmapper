@@ -70,7 +70,7 @@ defmodule Exmapper.Field do
     end
 
     def encode(:json, key, val, _) when is_map(val) do
-      {key, JSEX.encode!(val)}
+      {key, Json.encode!(val)}
     end
 
     def encode(:enum, key, val, field) when is_atom(val) do
@@ -189,7 +189,7 @@ defmodule Exmapper.Field do
       case val do
         nil -> nil
         _ ->
-          {_, data} = JSEX.decode(val)
+          {_, data} = Json.decode(val)
           data
       end
     end
