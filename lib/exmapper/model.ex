@@ -90,7 +90,11 @@ defmodule Exmapper.Model do
       defp encode_args(args) do
         Enum.map args, fn({key,value}) ->
           field = __fields__[key]
-          Exmapper.Field.Transform.encode(field[:type], key, value, field)
+          if is_list(value) do
+            {key, Enum.map(value,fn(x) -> elem(Exmapper.Field.Transform.encode(field[:type], key, x, field),1) end)}
+          else
+            Exmapper.Field.Transform.encode(field[:type], key, value, field)
+          end
         end
       end
 
