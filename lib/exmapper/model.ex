@@ -65,10 +65,10 @@ defmodule Exmapper.Model do
 
       def execute!(sql, args \\ []), do: query!(sql, args) |> result_to_keywords
 
-      def all(args \\ []), do: select("*", table_name, args, "id ASC") |> query |> to_new
-      def count(args \\ []), do: select("COUNT(*)", table_name, args) |> query |> elem(1) |> List.first |> List.first |> elem(1)
-      def first(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],args), "id ASC") |> query |> to_new |> List.first
-      def last(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],args), "id DESC") |> query |> to_new |> List.first
+      def all(args \\ []), do: select("*", table_name, encode_args(args), "id ASC") |> query |> to_new
+      def count(args \\ []), do: select("COUNT(*)", table_name, encode_args(args)) |> query |> elem(1) |> List.first |> List.first |> elem(1)
+      def first(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],encode_args(args)), "id ASC") |> query |> to_new |> List.first
+      def last(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],encode_args(args)), "id DESC") |> query |> to_new |> List.first
       def get(id), do: select("*", table_name, [id: id]) |> query |> to_new |> List.first
       
       def create!(args), do: elem(create(args),1)
@@ -87,6 +87,12 @@ defmodule Exmapper.Model do
       end
       def update(args) when is_map(args), do: create_or_update(:update, args, where(id: args.id))
 
+      defp encode_args(args) do
+        Enum.map args, fn({key,value}) ->
+          field = __fields__[key]
+          Exmapper.Field.Transform.encode(field[:type], key, value, field)
+        end
+      end
 
       defp create_or_update(type, args, where \\ {"",[]}) do
         case run_callbacks(__MODULE__, :before, type, args) do
