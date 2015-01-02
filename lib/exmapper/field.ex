@@ -58,7 +58,6 @@ defmodule Exmapper.Field do
   defmodule Transform do
 
     def encode_args(fields, args) do
-      IO.inspect args
       Enum.map args, fn({key,value}) ->
         field = fields[:"#{List.first(String.split(Atom.to_string(key),"."))}"]
         if is_list(value) do
