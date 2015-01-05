@@ -115,8 +115,12 @@ defmodule Exmapper.Model do
                 id = data[:insert_id]
                 if id == 0 && !is_nil(args[:id]), do: id = args[:id]
                 data = get(id)
-                run_callbacks(__MODULE__, :after, type, data)
-                {:ok, data}
+                case run_callbacks(__MODULE__, :after, type, data) do
+                  {:ok, data} ->
+                    {:ok, data}
+                  _ -> {:error, :after_callback}
+                end
+                
               error ->
                 Logger.info inspect error
                 {:error, error}
