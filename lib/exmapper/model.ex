@@ -39,7 +39,7 @@ defmodule Exmapper.Model do
             data = Exmapper.Field.Transform.decode(field[:type], params, field, key, val)
             Map.put(acc,key,data)
           else
-            Map.delete(acc,key)
+            acc
           end
         end
       end
