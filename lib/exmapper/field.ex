@@ -2,16 +2,16 @@ defmodule Exmapper.Field do
 
 
   def timestamps_create_callback_integer(data) do
-    data.created_at!.(Timex.Date.convert(Timex.Date.local, :secs)) |> timestamps_update_callback_integer
+    Map.put(data, :created_at, Timex.Date.convert(Timex.Date.local, :secs)) |> timestamps_update_callback_integer
   end
   def timestamps_create_callback_datetime(data) do
-    data.created_at!.(Timex.Date.local) |> timestamps_update_callback_datetime
+    Map.put(data, :created_at, Timex.Date.local) |> timestamps_update_callback_datetime
   end
   def timestamps_update_callback_integer(data) do
-    data.updated_at!.(Timex.Date.convert(Timex.Date.local, :secs))
+    Map.put(data, :updated_at, Timex.Date.convert(Timex.Date.local, :secs))
   end
   def timestamps_update_callback_datetime(data) do
-    data.updated_at!.(Timex.Date.local)
+    Map.put(data, :updated_at, Timex.Date.local)
   end
 
   defmacro field(name,type \\ :string,opts \\ []) do
