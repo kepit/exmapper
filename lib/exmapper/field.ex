@@ -87,16 +87,16 @@ defmodule Exmapper.Field do
       retval = Enum.find_index(enums, fn(x) -> x == val end)
       {key, retval}
     end
-
-    def encode(:string, key, val, _) when is_nil(val) do
-      {key, :undefined}
+    
+    def encode(type, key, val, _) when is_list(val) and type in [:string, :text] do
+      { key, List.to_string(val) }
+    end
+    
+    def encode(type, key, val, _) when is_atom(val) and type in [:string, :text] do
+      { key, Atom.to_string(val) }
     end
 
-    def encode(:text, key, val, _) when is_nil(val) do
-      {key, :undefined}
-    end
-
-    def encode(_ ,key, val, _) when is_nil(val) do
+    def encode(_ ,key, _val, _) when is_nil(val) do
       {key, :undefined}
     end
 
