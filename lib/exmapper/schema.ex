@@ -10,7 +10,6 @@ defmodule Exmapper.Schema do
       @table_name unquote(name)
 
       field :id, :integer, primary_key: true, auto_increment: true, required: true
-
       unquote(block)
       
       defstruct Enum.map(@fields, fn({key,val}) -> {key,val[:opts][:default]} end)

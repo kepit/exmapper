@@ -18,8 +18,7 @@ defmodule Exmapper.Field do
     quote do
       fields = Module.get_attribute(__MODULE__,:fields)
       field = Keyword.new([{unquote(name), [name: unquote(name), type: unquote(type), opts: unquote(opts)]}])
-      setter_field = Keyword.new([{:"#{unquote(name)}!", [name: unquote(name), type: :setter, opts: [mod: __MODULE__, original_type: unquote(type), original_opts: unquote(opts)]]}])
-      Module.put_attribute(__MODULE__,:fields,fields++field++setter_field)
+      Module.put_attribute(__MODULE__,:fields,fields++field)
     end
   end
 
@@ -38,10 +37,9 @@ defmodule Exmapper.Field do
     quote do
       parent_field = :"#{unquote(name)}_id"
       field = Keyword.new([{parent_field, [name: parent_field, type: :integer, opts: [foreign_key: true, mod: unquote(mod), required: true]]}])
-      setter_field = Keyword.new([{:"#{parent_field}!", [name: parent_field, type: :setter, opts: [mod: __MODULE__, original_type: :integer]]}])
       virt = Keyword.new([{:"#{unquote(name)}", [name: :"#{unquote(name)}", type: :belongs_to, opts: unquote(opts) ++ [parent_field: parent_field, mod: unquote(mod)]]}])
       fields = Module.get_attribute(__MODULE__,:fields)
-      Module.put_attribute(__MODULE__,:fields,fields++field++setter_field++virt)
+      Module.put_attribute(__MODULE__,:fields,fields++field++virt)
     end
   end
   
@@ -106,24 +104,16 @@ defmodule Exmapper.Field do
       { key, val } 
     end
 
-
-    def decode(:setter, params, field, _key, _val) do
-      fn(new_val) ->
-        mod = field[:opts][:mod]
-        mod.new(Keyword.put(params, field[:name], encode( field[:opts][:original_type],field[:name],new_val, [name: field[:name], type: field[:opts][:original_type], opts: field[:opts][:original_opts]]) |> elem(1)))
-      end
-    end
-
     def decode(:belongs_to, params, field, _key, val) do
       id = params[field[:opts][:parent_field]]
       if id != nil do
-        mod = field[:opts][:mod]
         (fn() ->
-           mod.get(id)
+          Exmapper.Associations.belongs_to(field,params)
          end)
       else
         val
       end
+      
     end
 
     def decode(_, _, _, _, :undefined) do
@@ -149,50 +139,12 @@ defmodule Exmapper.Field do
 
     
     def decode(:has_many, params, field, _key, val) do
-      if params[:id] != nil do
-        mod = field[:opts][:mod]
-        through = field[:opts][:through]
-        foreign_key = field[:opts][:foreign_key]
         (fn(args) ->
-           query = Keyword.new([{foreign_key, params[:id]}])
-           if through != nil do
-             assoc_args = query |>
-               Keyword.put(:order_by, Atom.to_string(foreign_key))
-             through_args = []
-             if is_list(args) && is_list(args[:through!]), do: through_args = args[:through!]
-             assoc = through.all(assoc_args++through_args)
-             assoc_mod_id = Exmapper.Utils.module_to_id(mod)
-             ids = Enum.map assoc, fn(a) ->
-               Map.get(a,assoc_mod_id)
-             end
-             if Enum.count(ids) == 0 do
-               query = ["true": false]
-             else
-               query = Keyword.new([{String.to_atom("id.in"), ids}])
-             end
-           end
-           if is_list(args) do
-             type = Enum.at(args,0)
-             args = Enum.drop(args,1) ++ query
-           else
-             type = args
-             args = query
-           end
-           args = Keyword.delete(args, :through!)
-           result = apply(mod, type, [args])
-           if through != nil do
-             id = cond do
-               type in [:create, :update] -> elem(result,1).id
-               type in [:"create!", :"update!"] -> result.id
-               true -> nil
-             end
-             unless is_nil(id), do: through.create(["#{Exmapper.Utils.module_to_id(mod)}": id, "#{foreign_key}": params[:id]]++through_args)
-           end
-           result
-         end)
-      else
-        val
-      end          
+          cond do
+            is_list(args) -> Exmapper.Associations.has_many(field,params,Enum.at(args,0),Enum.slice(args,1..-1))
+            true -> Exmapper.Associations.has_many(field,params,args)
+          end
+        end)     
     end
 
     def decode(:json, _params, _field, _key, val) do

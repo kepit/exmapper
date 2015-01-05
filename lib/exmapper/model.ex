@@ -9,11 +9,17 @@ defmodule Exmapper.Model do
       use Timex
 
       use Exmapper.Callbacks
-
+      
       repo = :default
+      load_assoc = true
       unless is_nil(unquote(opts)[:repo]), do: repo = unquote(opts)[:repo]
-      @repo repo
+      unless is_nil(unquote(opts)[:load_assoc]), do: load_assoc = unquote(opts)[:load_assoc]
 
+      @repo repo
+      @load_assoc load_assoc
+      @before_compile Exmapper.Model
+
+      def load_assoc, do: @load_assoc
       def repo, do: @repo
 
       defp table_name() do
@@ -28,9 +34,13 @@ defmodule Exmapper.Model do
         params = Exmapper.Utils.keys_to_atom(params)
         Enum.reduce Map.to_list(__struct__), __struct__, fn({key,val}, acc) ->
           field = __fields__[key]
-          unless is_nil(params[key]), do: val = params[key]
-          data = Exmapper.Field.Transform.decode(field[:type], params, field, key, val)
-          Map.put(acc,key,data)
+          unless load_assoc == false && (field[:type] == :belongs_to || field[:type] == :has_many) do
+            unless is_nil(params[key]), do: val = params[key]
+            data = Exmapper.Field.Transform.decode(field[:type], params, field, key, val)
+            Map.put(acc,key,data)
+          else
+            Map.delete(acc,key)
+          end
         end
       end
 
@@ -135,4 +145,23 @@ defmodule Exmapper.Model do
     end
   end
 
+  defmacro __before_compile__(_env) do
+    quote do
+      Enum.filter_map(@fields,fn({k,v}) -> (v[:type] == :has_many or v[:type] == :belongs_to) end, fn({k,v}) ->
+        case v[:type] do
+          :has_many ->
+            Code.eval_string("def #{k}!(model, query_type \\\\ :all, opts \\\\ []) do\n" <>
+              "Exmapper.Associations.has_many(#{inspect v},model,query_type,opts)\n" <>
+              "end",[],__ENV__)
+          :belongs_to ->
+            Code.eval_string("def #{k}!(model) do\n" <>
+              "Exmapper.Associations.belongs_to(#{inspect v},model)\n" <>
+              "end",[],__ENV__)
+        end
+
+      end)
+      
+    end
+  end
+  
 end
