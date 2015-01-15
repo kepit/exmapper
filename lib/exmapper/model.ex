@@ -75,6 +75,7 @@ defmodule Exmapper.Model do
 
       def execute!(sql, args \\ []), do: query!(sql, args) |> result_to_keywords
 
+      def raw(field \\ "*",args \\ []), do: select(field, table_name, Exmapper.Field.Transform.encode_args(__fields__,args), "id ASC") |> query |> elem(1)
       def all(args \\ []), do: select("*", table_name, Exmapper.Field.Transform.encode_args(__fields__,args), "id ASC") |> query |> to_new
       def count(args \\ []), do: select("COUNT(*)", table_name, Exmapper.Field.Transform.encode_args(__fields__,args)) |> query |> elem(1) |> List.first |> List.first |> elem(1)
       def first(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],Exmapper.Field.Transform.encode_args(__fields__,args)), "id ASC") |> query |> to_new |> List.first

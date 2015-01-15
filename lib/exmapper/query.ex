@@ -79,11 +79,14 @@ defmodule Exmapper.Query do
     
     {limit_sql, limit_args} = limit(args)
     args = Keyword.delete(args,:limit)
+
+    {group_by_sql, group_by_args} = group_by(args)
+    args = Keyword.delete(args,:group_by)
     
     {where_sql, where_args} = where(args)
     
-    sql = "SELECT #{what} FROM #{table} #{where_sql} #{order_by_sql} #{limit_sql}"
-    sql_args = List.flatten(where_args ++ order_by_args ++ limit_args)
+    sql = "SELECT #{what} FROM #{table} #{where_sql} #{group_by_sql} #{order_by_sql} #{limit_sql}"
+    sql_args = List.flatten(where_args ++ group_by_args ++ order_by_args ++ limit_args)
     {sql, sql_args}
   end
 
@@ -103,6 +106,18 @@ defmodule Exmapper.Query do
     if Keyword.has_key?(args,:order_by) do
       if args[:order_by] != "" && is_binary(args[:order_by]) do
         {"ORDER BY " <> args[:order_by],[]}
+      else
+        {"", []}
+      end
+    else
+      {"", []}
+    end
+  end
+
+  def group_by(args \\ []) do
+    if Keyword.has_key?(args,:group_by) do
+      if args[:group_by] != "" && is_binary(args[:group_by]) do
+        {"GROUP BY " <> args[:group_by],[]}
       else
         {"", []}
       end

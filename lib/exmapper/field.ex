@@ -96,7 +96,7 @@ defmodule Exmapper.Field do
       { key, Atom.to_string(val) }
     end
 
-    def encode(_ ,key, _val, _) when is_nil(val) do
+    def encode(_ ,key, _val, _) when is_nil(_val) do
       {key, :undefined}
     end
 
