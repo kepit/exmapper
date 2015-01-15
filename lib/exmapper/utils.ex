@@ -16,6 +16,14 @@ defmodule Exmapper.Utils do
              end)
   end
 
+  def to_map(value) do
+    Enum.map(value, fn(x) ->
+      Enum.reduce(x, %{},fn({k,v},acc) ->
+        Map.put(acc,String.to_atom(k),v)
+      end)
+    end)
+  end
+
   def to_keywords(value) do
     if value == nil do
       nil
