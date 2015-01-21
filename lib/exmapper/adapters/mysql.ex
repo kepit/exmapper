@@ -16,7 +16,7 @@ defmodule Exmapper.Adapters.Mysql do
   end
 
   def query(pool, query, args) do
-    :emysql.execute(pool, query, args)
+    :emysql.execute(pool, query, args, :infinity)
   end
 
   def normalize_result({:result_packet,_,_,_,_} = ret) do
