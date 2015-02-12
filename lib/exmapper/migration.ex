@@ -19,7 +19,7 @@ defmodule Exmapper.Migration do
                                        if type == nil, do: type = @field_types[:string]
                                        cond do
                                          val[:type] == :string ->
-                                           if val[:opts][:default] != nil, do: default = "DEFAULT '#{val[:opts][:default]}'"
+                                           if val[:opts][:default] != nil && !is_function(val[:opts][:default]), do: default = "DEFAULT '#{val[:opts][:default]}'"
                                            val[:type] == :text ->
                                            if val[:opts][:default] != nil, do: default = ""
                                            true -> nil
