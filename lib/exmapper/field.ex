@@ -85,8 +85,29 @@ defmodule Exmapper.Field do
     def encode(:enum, key, val, field) when is_atom(val) do
       enums = field[:opts][:values]
       retval = Enum.find_index(enums, fn(x) -> x == val end)
+      if is_nil(retval) do
+        retval = :undefined
+      end
       {key, retval}
     end
+    
+
+    def encode(:flag, key, val, field) when is_list(val) do
+      flags = field[:opts][:values]
+      retval = Enum.map(flags, fn(t) -> 
+                        if Enum.member?(val, t) do
+                          "1"
+                        else
+                          "0"
+                        end
+                        end) |> Enum.join |> String.reverse |> String.to_integer(2)
+      {key, retval}
+    end
+
+    def encode(:flag, key, val, field) when is_atom(val) do
+      encode(:flag, key, [val], field)
+    end
+    
     
     def encode(type, key, val, _) when is_list(val) and type in [:string, :text] do
       { key, List.to_string(val) }
@@ -136,6 +157,14 @@ defmodule Exmapper.Field do
     def decode(:enum, _params, _field, _key, val) when is_atom(val) do
       val
     end
+
+    def decode(:flag, _params, field, key, val) when is_integer(val) do
+      flags = Enum.with_index(field[:opts][:values])
+      str = Integer.to_string(val, 2) |> String.reverse
+      Enum.filter_map(flags, fn({t, i}) -> String.at(str, i) == "1" end, fn({t,i}) -> t end)
+    end
+    
+
 
     
     def decode(:has_many, params, field, _key, val) do
