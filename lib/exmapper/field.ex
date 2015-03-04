@@ -90,10 +90,17 @@ defmodule Exmapper.Field do
       end
       {key, retval}
     end
+
+    def encode(:enum, key, val, field) when is_bitstring(val) do
+      encode(:enum, key, String.to_atom(val), field)
+    end
     
 
     def encode(:flag, key, val, field) when is_list(val) do
       flags = field[:opts][:values]
+      val = Enum.map(val, fn(v) ->
+                       if is_atom(v) do v else String.to_atom(v) end
+                     end)
       retval = Enum.map(flags, fn(t) -> 
                         if Enum.member?(val, t) do
                           "1"
