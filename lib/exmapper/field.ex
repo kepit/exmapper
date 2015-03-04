@@ -165,16 +165,13 @@ defmodule Exmapper.Field do
       val
     end
 
-    def decode(:flag, _params, field, key, val) when is_integer(val) do
+    def decode(:flag, _params, field, _key, val) when is_integer(val) do
       flags = Enum.with_index(field[:opts][:values])
       str = Integer.to_string(val, 2) |> String.reverse
-      Enum.filter_map(flags, fn({t, i}) -> String.at(str, i) == "1" end, fn({t,i}) -> t end)
+      Enum.filter_map(flags, fn({_, i}) -> String.at(str, i) == "1" end, fn({t,_}) -> t end)
     end
     
-
-
-    
-    def decode(:has_many, params, field, _key, val) do
+    def decode(:has_many, params, field, _key, _val) do
         (fn(args) ->
           cond do
             is_list(args) -> Exmapper.Associations.has_many(field,params,Enum.at(args,0),Enum.slice(args,1..-1))
