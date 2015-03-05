@@ -151,17 +151,17 @@ defmodule Exmapper.Model do
   end
 
   defmacro __before_compile__(_env) do
-    quote do
+    quote bind_quoted: [] do
       Enum.filter_map(@fields,fn({k,v}) -> (v[:type] == :has_many or v[:type] == :belongs_to) end, fn({k,v}) ->
         case v[:type] do
           :has_many ->
-            Code.eval_string("def #{k}!(model, query_type \\\\ :all, opts \\\\ []) do\n" <>
-              "Exmapper.Associations.has_many(#{inspect v},model,query_type,opts)\n" <>
-              "end",[],__ENV__)
-          :belongs_to ->
-            Code.eval_string("def #{k}!(model) do\n" <>
-              "Exmapper.Associations.belongs_to(#{inspect v},model)\n" <>
-              "end",[],__ENV__)
+            def unquote(:"#{k}!")(model, query_type \\ :all, opts \\ []) do
+              Exmapper.Associations.has_many(unquote(v),model,query_type,opts)
+            end
+            :belongs_to ->
+            def unquote(:"#{k}!")(model) do
+              Exmapper.Associations.belongs_to(unquote(v),model)
+            end
         end
 
       end)
