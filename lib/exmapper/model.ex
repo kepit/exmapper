@@ -29,7 +29,7 @@ defmodule Exmapper.Model do
 
       def to_json(data) when is_list(data) do
         Enum.map data, fn(d) ->
-          clean_json(d)
+          to_json(d)
         end
       end
 
