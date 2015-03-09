@@ -26,6 +26,20 @@ defmodule Exmapper.Model do
         Atom.to_string(__table_name__)
       end
 
+
+      def to_json(data) when is_list(data) do
+        Enum.map data, fn(d) ->
+          clean_json(d)
+        end
+      end
+
+      def to_json(data) when is_map(data) do
+        Enum.filter(Map.from_struct(data), fn({_, val}) ->
+          !is_function(val)
+        end)
+      end
+
+
       defp to_new(args) when is_tuple(args), do: args |> elem(1) |> to_new
       defp to_new(args) when is_list(args), do: Enum.map(args, fn(a) -> new(a) end)
       defp to_new(args) when is_nil(args), do: nil
