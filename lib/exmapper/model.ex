@@ -36,7 +36,7 @@ defmodule Exmapper.Model do
       def to_json(data) when is_map(data) do
         Enum.filter(Map.from_struct(data), fn({_, val}) ->
           !is_function(val)
-        end)
+        end) |> Enum.into(%{})
       end
 
 
