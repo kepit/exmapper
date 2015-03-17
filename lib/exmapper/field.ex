@@ -24,7 +24,7 @@ defmodule Exmapper.Field do
 
   defmacro timestamps(type, _opts \\ []) do
     create_fun = String.to_atom("timestamps_create_callback_#{type}")
-    update_fun = String.to_atom("timestamps_create_callback_#{type}")
+    update_fun = String.to_atom("timestamps_update_callback_#{type}")
     quote do
       field :created_at, unquote(type)
       field :updated_at, unquote(type)
