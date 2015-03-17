@@ -2,59 +2,87 @@ defmodule Exmapper.Migration do
 
   require Logger
 
-  @field_types [string: "VARCHAR(255)", integer: "INT", text: "TEXT", float: "FLOAT", double: "DOUBLE", boolean: "TINYINT(1)", datetime: "DATETIME", json: "TEXT", enum: "INT", blob: "BLOB", flag: "INT"]
+  @field_types [string: "VARCHAR(255)", integer: "INT(11)", text: "TEXT", float: "FLOAT", double: "DOUBLE", boolean: "TINYINT(1)", datetime: "DATETIME", json: "TEXT", enum: "INT(11)", blob: "BLOB", flag: "INT(11)"]
+
+  defp field_to_mysql(key,val,fun) do
+    if !Exmapper.Utils.is_virtual_type(val[:type]) do
+      default = ""
+      primary_key = ""
+      auto_increment = ""
+      not_null = "NULL "
+      if val[:opts][:primary_key] == true, do: primary_key = "PRIMARY KEY"
+      if val[:opts][:required] == true, do: not_null = "NOT NULL "
+      if val[:opts][:auto_increment] == true, do: auto_increment = "AUTO_INCREMENT "
+      if val[:opts][:default] != nil && !is_function(val[:opts][:default]), do: default = "DEFAULT #{val[:opts][:default]} "
+      type = @field_types[val[:type]]
+      if type == nil, do: type = @field_types[:string]
+      cond do
+        val[:type] == :string ->
+          if val[:opts][:default] != nil && !is_function(val[:opts][:default]), do: default = "DEFAULT '#{val[:opts][:default]}'"
+          val[:type] == :text ->
+          if val[:opts][:default] != nil, do: default = ""
+          true -> nil
+        end
+      fun.([name: key, type: type, opts: "#{not_null}#{default}#{auto_increment}#{primary_key}"])
+    else
+      nil
+    end
+  end
   
   defp fields_to_mysql(collection,joiner,fun) do
-    Enum.join(Enum.reject(Enum.map(collection,fn({key,val}) ->
-                                     if !Exmapper.Utils.is_virtual_type(val[:type]) do
-                                       default = ""
-                                       primary_key = ""
-                                       auto_increment = ""
-                                       not_null = "NULL "
-                                       if val[:opts][:primary_key] == true, do: primary_key = "PRIMARY KEY"
-                                       if val[:opts][:required] == true, do: not_null = "NOT NULL "
-                                       if val[:opts][:auto_increment] == true, do: auto_increment = "AUTO_INCREMENT "
-                                       if val[:opts][:default] != nil && !is_function(val[:opts][:default]), do: default = "DEFAULT #{val[:opts][:default]} "
-                                       type = @field_types[val[:type]]
-                                       if type == nil, do: type = @field_types[:string]
-                                       cond do
-                                         val[:type] == :string ->
-                                           if val[:opts][:default] != nil && !is_function(val[:opts][:default]), do: default = "DEFAULT '#{val[:opts][:default]}'"
-                                           val[:type] == :text ->
-                                           if val[:opts][:default] != nil, do: default = ""
-                                           true -> nil
-                                       end
-                                       fun.([name: key, type: type, opts: "#{not_null}#{default}#{auto_increment}#{primary_key}"])
-                                     else
-                                       nil
-                                     end
-                                   end), &(is_nil(&1))),joiner)
+    Enum.reduce(collection,"",fn({key,val},acc) ->
+      result = field_to_mysql(key,val,fun)
+      cond do
+        is_nil(result) -> acc
+        acc == "" -> acc <> result
+        true -> acc <> joiner <> result
+      end
+    end)
   end
 
+  defp create_foreign_keys(module, [{key,val}|tail]) do
+    if val[:opts][:foreign_key] == true do
+      table = val[:opts][:mod].__table_name__
+      alter = "CONSTRAINT #{module.__table_name__}_to_#{table} FOREIGN KEY (#{key}) REFERENCES #{table} (id) ON UPDATE CASCADE ON DELETE CASCADE"
+      case Exmapper.Adapter.query("ALTER TABLE #{module.__table_name__} ADD #{alter}", [], module.repo) do
+        {:error, error} ->
+          Logger.info inspect error
+          false
+        _ -> create_foreign_keys(module,tail)
+      end
+    else
+      create_foreign_keys(module,tail)
+    end
+  end
+  defp create_foreign_keys(_, []), do: true
+
+  defp update_fields(module,[{field,opts}|tail]) do
+    alter = field_to_mysql(field, opts, fn(x) -> "#{x[:name]} #{x[:type]} #{x[:opts]}" end)
+    case Exmapper.Adapter.query("ALTER TABLE #{module.__table_name__} MODIFY #{alter}", [], module.repo) do
+      {:error, error} ->
+        Logger.info inspect error
+        {:error, error}
+      _ -> update_fields(module,tail)
+    end
+  end
+  defp update_fields(_,[]), do: :ok
+
+  defp create_new_fields(module,[{field,opts}|tail]) do
+    alter = field_to_mysql(field, opts, fn(x) -> "#{x[:name]} #{x[:type]} #{x[:opts]}" end)
+    case Exmapper.Adapter.query("ALTER TABLE #{module.__table_name__} ADD #{alter}", [], module.repo) do
+      {:error, error} ->
+        Logger.info inspect error
+        {:error, error}
+      _ -> create_new_fields(module,tail)
+    end
+  end
+  defp create_new_fields(_,[]), do: :ok
+  
   def migrate(module) do
     fields = fields_to_mysql(module.__fields__,", ",fn(x) -> "#{x[:name]} #{x[:type]} #{x[:opts]}" end)
     case Exmapper.Adapter.query("CREATE TABLE #{module.__table_name__}(#{fields})", [], module.repo) do
       {:ok, _} ->
-        alter = Enum.join(Enum.reject(Enum.map(module.__fields__,fn({key,val}) ->
-                                                 if val[:opts][:foreign_key] == true do
-                                                   mod = val[:opts][:mod]
-                                                   table = mod.__table_name__
-                                                   "CONSTRAINT #{module.__table_name__}_to_#{table} FOREIGN KEY (#{key}) REFERENCES #{table} (id) ON UPDATE CASCADE ON DELETE CASCADE"
-                                                 else
-                                                   nil
-                                                 end
-                                               end),&(is_nil(&1))),", ")
-        if alter == "" do
-          true
-        else
-          case Exmapper.Adapter.query("ALTER TABLE #{module.__table_name__} ADD (#{alter})", [], module.repo) do
-            {:ok, _} ->
-              true
-            error ->
-              Logger.info inspect error
-              false
-          end
-        end
+        create_foreign_keys(module, module.__fields__)
       error ->
         Logger.info inspect error
         false
@@ -62,20 +90,21 @@ defmodule Exmapper.Migration do
   end
 
   def upgrade(module) do
-    old_fields = Enum.map(Exmapper.Adapter.query("SHOW COLUMNS FROM #{module.__table_name__}", [], module.repo) |> elem(1), fn(x) -> String.to_atom(elem(List.first(x),1)) end)
-    new_fields = Enum.reject(module.__fields__,fn({k,v}) -> Enum.member?(old_fields,k) || Exmapper.Utils.is_virtual_type(v[:type])  end)
-    if Enum.count(new_fields) == 0 do
-      false
-    else
-      alters = fields_to_mysql(new_fields,",",fn(x) -> "#{x[:name]} #{x[:type]} #{x[:opts]}" end)
-      case Exmapper.Adapter.query("ALTER TABLE #{module.__table_name__} ADD (#{alters})", [], module.repo) do
-        {:ok, _} ->
-          true
-        error ->
-          Logger.info inspect error
-          false
-      end 
-    end
+    fields = Enum.reduce(Exmapper.Adapter.query("SHOW COLUMNS FROM #{module.__table_name__}", [], module.repo) |> elem(1), %{names: [], types: %{}}, fn(x,acc) ->
+      field = Enum.into(x,%{})
+      name = String.to_atom(field["Field"])
+      %{acc | names: acc.names ++ [name], types: Map.put(acc.types,name,String.upcase(field["Type"]))}
+    end)
+    new_fields = Enum.reject(module.__fields__,fn({k,v}) ->
+      Enum.member?(fields.names,k) || Exmapper.Utils.is_virtual_type(v[:type])
+    end)
+    update_fields = Enum.reject(module.__fields__,fn({k,v}) ->
+      !Enum.member?(fields.names,k) || @field_types[v[:type]] == fields.types[k]
+    end)
+    result = true
+    if create_new_fields(module,new_fields) != :ok, do: result = false
+    if update_fields(module, update_fields) != :ok, do: result = false
+    result
   end
 
   def drop(module) do
