@@ -89,12 +89,21 @@ defmodule Exmapper.Migration do
     end
   end
 
-  def upgrade(module) do
-    fields = Enum.reduce(Exmapper.Adapter.query("SHOW COLUMNS FROM #{module.__table_name__}", [], module.repo) |> elem(1), %{names: [], types: %{}}, fn(x,acc) ->
+  defp get_fields({:ok, columns}) do
+    fields = Enum.reduce(columns, %{names: [], types: %{}}, fn(x,acc) ->
       field = Enum.into(x,%{})
       name = String.to_atom(field["Field"])
       %{acc | names: acc.names ++ [name], types: Map.put(acc.types,name,String.upcase(field["Type"]))}
     end)
+  end
+  defp get_fields({:error, error}) do
+    Logger.warn inspect error
+    %{names: [], types: %{}}
+  end
+  defp get_fields(_), do: %{names: [], types: %{}}
+  
+  def upgrade(module) do
+    fields = get_fields(Exmapper.Adapter.query("SHOW COLUMNS FROM #{module.__table_name__}", [], module.repo))
     new_fields = Enum.reject(module.__fields__,fn({k,v}) ->
       Enum.member?(fields.names,k) || Exmapper.Utils.is_virtual_type(v[:type])
     end)
