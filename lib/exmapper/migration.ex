@@ -77,17 +77,6 @@ defmodule Exmapper.Migration do
     end
   end
   defp create_new_fields(_,[]), do: :ok
-  
-  def migrate(module) do
-    fields = fields_to_mysql(module.__fields__,", ",fn(x) -> "#{x[:name]} #{x[:type]} #{x[:opts]}" end)
-    case Exmapper.Adapter.query("CREATE TABLE #{module.__table_name__}(#{fields})", [], module.repo) do
-      {:ok, _} ->
-        create_foreign_keys(module, module.__fields__)
-      error ->
-        Logger.info inspect error
-        false
-    end
-  end
 
   defp get_fields({:ok, columns}) do
     fields = Enum.reduce(columns, %{names: [], types: %{}}, fn(x,acc) ->
@@ -102,6 +91,17 @@ defmodule Exmapper.Migration do
   end
   defp get_fields(_), do: %{names: [], types: %{}}
   
+  def migrate(module) do
+    fields = fields_to_mysql(module.__fields__,", ",fn(x) -> "#{x[:name]} #{x[:type]} #{x[:opts]}" end)
+    case Exmapper.Adapter.query("CREATE TABLE #{module.__table_name__}(#{fields})", [], module.repo) do
+      {:ok, _} ->
+        create_foreign_keys(module, module.__fields__)
+      error ->
+        Logger.info inspect error
+        false
+    end
+  end
+  
   def upgrade(module) do
     fields = get_fields(Exmapper.Adapter.query("SHOW COLUMNS FROM #{module.__table_name__}", [], module.repo))
     new_fields = Enum.reject(module.__fields__,fn({k,v}) ->
@@ -110,10 +110,7 @@ defmodule Exmapper.Migration do
     update_fields = Enum.reject(module.__fields__,fn({k,v}) ->
       !Enum.member?(fields.names,k) || @field_types[v[:type]] == fields.types[k]
     end)
-    result = true
-    if create_new_fields(module,new_fields) != :ok, do: result = false
-    if update_fields(module, update_fields) != :ok, do: result = false
-    result
+    %{new_fields: create_new_fields(module,new_fields), update_fields: update_fields(module, update_fields)}
   end
 
   def drop(module) do
