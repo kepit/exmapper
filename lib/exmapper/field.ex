@@ -52,7 +52,6 @@ defmodule Exmapper.Field do
     end               
   end
 
-
   defmodule Transform do
 
     def encode_args(fields, args) do

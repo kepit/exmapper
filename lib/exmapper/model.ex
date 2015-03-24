@@ -26,6 +26,15 @@ defmodule Exmapper.Model do
         Atom.to_string(__table_name__)
       end
 
+      defp get_public_fields do
+        Enum.reduce(__fields__, [], fn({key,val},acc) ->
+          if !Keyword.has_key?(val[:opts], :private) do
+            acc ++ [Atom.to_string(key)]
+          else
+            acc
+          end
+        end)
+      end
 
       def to_json(data) when is_list(data) do
         Enum.map data, fn(d) ->
@@ -39,6 +48,40 @@ defmodule Exmapper.Model do
         end) |> Enum.into(%{})
       end
 
+      def from_json(data) when is_list(data) do
+        Enum.map data, fn(d) ->
+          from_json(d)
+        end
+      end
+
+      def from_json!(data) when is_list(data) do
+        Enum.map data, fn(d) ->
+          case from_json!(d) do
+            {:ok, map} -> map
+            {:error, error} -> raise(error)
+          end
+        end
+      end
+      
+      def from_json(data) when is_map(data) do
+        keys = get_public_fields
+        Enum.reduce(data,new(),fn({key,val},acc) ->
+          if key in keys do
+            Map.put(acc,String.to_atom(key),val)
+          else
+            acc
+          end
+        end)
+      end
+
+      def from_json!(data) when is_map(data) do
+        map = from_json(data)
+        if is_nil(map.id) do
+          create(map)
+        else
+          update(map)
+        end
+      end
 
       defp to_new(args) when is_tuple(args), do: args |> elem(1) |> to_new
       defp to_new(args) when is_list(args), do: Enum.map(args, fn(a) -> new(a) end)
