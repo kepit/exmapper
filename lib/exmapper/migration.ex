@@ -16,12 +16,17 @@ defmodule Exmapper.Migration do
       if val[:opts][:default] != nil && !is_function(val[:opts][:default]), do: default = "DEFAULT #{val[:opts][:default]} "
       type = @field_types[val[:type]]
       if type == nil, do: type = @field_types[:string]
-      cond do
-        val[:type] == :string ->
+      case val[:type] do
+        :string ->
           if val[:opts][:default] != nil && !is_function(val[:opts][:default]), do: default = "DEFAULT '#{val[:opts][:default]}'"
-          val[:type] == :text ->
+        :text ->
           if val[:opts][:default] != nil, do: default = ""
-          true -> nil
+        :enum ->
+          if is_atom(val[:opts][:default]) do
+            idx = Enum.find_index(val[:opts][:values], fn(x) -> x == val[:opts][:default] end)
+            if idx > -1, do: default = "DEFAULT #{idx}"
+          end
+        true -> nil
         end
       fun.([name: key, type: type, opts: "#{not_null}#{default}#{auto_increment}#{primary_key}"])
     else
@@ -69,6 +74,7 @@ defmodule Exmapper.Migration do
 
   defp create_new_fields(module,[{field,opts}|tail]) do
     alter = field_to_mysql(field, opts, fn(x) -> "#{x[:name]} #{x[:type]} #{x[:opts]}" end)
+    Logger.warn inspect alter
     case Exmapper.Adapter.query("ALTER TABLE #{module.__table_name__} ADD #{alter}", [], module.repo) do
       {:error, error} ->
         Logger.info inspect error
