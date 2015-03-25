@@ -26,7 +26,7 @@ defmodule Exmapper.Migration do
             idx = Enum.find_index(val[:opts][:values], fn(x) -> x == val[:opts][:default] end)
             if idx > -1, do: default = "DEFAULT #{idx}"
           end
-        true -> nil
+        _ -> nil
         end
       fun.([name: key, type: type, opts: "#{not_null}#{default}#{auto_increment}#{primary_key}"])
     else
