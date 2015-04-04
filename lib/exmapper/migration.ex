@@ -13,21 +13,9 @@ defmodule Exmapper.Migration do
       if val[:opts][:primary_key] == true, do: primary_key = "PRIMARY KEY"
       if val[:opts][:required] == true, do: not_null = "NOT NULL "
       if val[:opts][:auto_increment] == true, do: auto_increment = "AUTO_INCREMENT "
-      if val[:opts][:default] != nil && !is_function(val[:opts][:default]), do: default = "DEFAULT #{val[:opts][:default]} "
+      if val[:opts][:default] != nil && !is_function(val[:opts][:default]), do: default = "DEFAULT #{inspect(Exmapper.Field.Transform.encode(val[:type], key, val[:opts][:default], val) |> elem(1))} "
       type = @field_types[val[:type]]
       if type == nil, do: type = @field_types[:string]
-      case val[:type] do
-        :string ->
-          if val[:opts][:default] != nil && !is_function(val[:opts][:default]), do: default = "DEFAULT '#{val[:opts][:default]}'"
-        :text ->
-          if val[:opts][:default] != nil, do: default = ""
-        :enum ->
-          if is_atom(val[:opts][:default]) do
-            idx = Enum.find_index(val[:opts][:values], fn(x) -> x == val[:opts][:default] end)
-            if idx > -1, do: default = "DEFAULT #{idx}"
-          end
-        _ -> nil
-        end
       fun.([name: key, type: type, opts: "#{not_null}#{default}#{auto_increment}#{primary_key}"])
     else
       nil
