@@ -78,7 +78,6 @@ defmodule Exmapper.Field do
     end
 
     def encode(:json, key, val, _) when is_map(val) do
-      IO.inspect(val)
       {key, Json.encode!(val)}
     end
 
