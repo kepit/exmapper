@@ -2,13 +2,13 @@ defmodule Exmapper.Field do
 
 
   def timestamps_create_callback_integer(data) do
-    Map.put(data, :created_at, Timex.Date.convert(Timex.Date.local, :secs)) |> timestamps_update_callback_integer
+    Map.put(data, :created_at, Timex.Date.to_secs(Timex.Date.local)) |> timestamps_update_callback_integer
   end
   def timestamps_create_callback_datetime(data) do
     Map.put(data, :created_at, Timex.Date.local) |> timestamps_update_callback_datetime
   end
   def timestamps_update_callback_integer(data) do
-    Map.put(data, :updated_at, Timex.Date.convert(Timex.Date.local, :secs))
+    Map.put(data, :updated_at, Timex.Date.to_secs(Timex.Date.local))
   end
   def timestamps_update_callback_datetime(data) do
     Map.put(data, :updated_at, Timex.Date.local)
@@ -74,7 +74,7 @@ defmodule Exmapper.Field do
     end
 
     def encode(:datetime, key, val, _) do
-      {key, {{val[:year],val[:month],val[:day]},{val[:hour],val[:minute],val[:second],0}}}
+      {key, {{val.year,val.month,val.day},{val.hour,val.minute,val.second,0}}}
     end
 
     def encode(:json, key, val, _) when is_map(val) do
