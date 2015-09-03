@@ -155,7 +155,7 @@ defmodule Exmapper.Model do
       end
       def update(args) when is_map(args), do: create_or_update(:update, args, where(id: args.id))
 
-      defp create_or_update(type, args, where \\ {"",[]}) do
+        defp create_or_update(type, args, where \\ {"",[]}) do
         case run_callbacks(__MODULE__, :before, type, args) do
           {:ok, args} ->
             args = Enum.reject(
@@ -163,7 +163,8 @@ defmodule Exmapper.Model do
                          field = __fields__[key]
                          if field[:opts][:required] == true && val == nil && key != :id, do: raise("Field #{key} is required!")
                          case Exmapper.Utils.is_virtual_type(field[:type]) do
-                           false -> Exmapper.Field.Transform.encode(field[:type], key, val, field)
+                           false ->
+                             Exmapper.Field.Transform.encode(field[:type], key, val, field)
                            true -> nil
                          end
                        end),fn(x) -> is_nil(x) end)

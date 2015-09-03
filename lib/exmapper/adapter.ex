@@ -2,7 +2,7 @@ defmodule Exmapper.Adapter do
   require Logger
 
   def adapter do
-    Exmapper.Adapters.Mysql
+    Exmapper.Adapters.Mariaex
   end
 
   def connect(params) do

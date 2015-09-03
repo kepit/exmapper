@@ -26,9 +26,10 @@ defmodule Exmapper.Mixfile do
   # Type `mix help deps` for more examples and options
   defp deps do
     [
-        { :emysql, github: "eonblast/emysql" },
-        { :timex, "~> 0.13.3", [hex_app: :timex] },
-	      { :json, github: "kepit/json" }
+        { :timex, "~> 0.19.3", [hex_app: :timex] },
+	      { :json, github: "kepit/json" },
+        { :mariaex, "~> 0.4.3" },
+        { :poolboy, "~> 1.5.1" }
     ]
   end
 end
