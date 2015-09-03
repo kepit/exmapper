@@ -20,7 +20,6 @@ defmodule Exmapper.Adapters.Mariaex do
   end
 
   def query(pool, query, args) do
-    IO.inspect(args)
     :poolboy.transaction(
       pool,
       fn(pid) ->
