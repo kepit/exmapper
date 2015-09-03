@@ -27,7 +27,7 @@ defmodule Exmapper.Adapters.Mariaex do
       end)
   end
 
-  def normalize_result({:ok, %Mariaex.Result{command: cmd} = result}) when cmd in [:insert, :update] do
+  def normalize_result({:ok, %Mariaex.Result{command: cmd} = result}) when cmd in [:insert, :update, :delete] do
     {:ok, [insert_id: result.last_insert_id, affected_rows: result.num_rows, status: nil, msg: nil, warning_count: 0]}
   end
   
