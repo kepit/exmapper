@@ -27,11 +27,8 @@ defmodule Exmapper.Adapters.Mariaex do
       end)
   end
 
-  def normalize_result({:ok, %Mariaex.Result{command: cmd} = result}) when cmd in [:insert, :update, :delete] do
-    {:ok, [insert_id: result.last_insert_id, affected_rows: result.num_rows, status: nil, msg: nil, warning_count: 0]}
-  end
   
-  def normalize_result({:ok, %Mariaex.Result{command: cmd} = result}) do
+  def normalize_result({:ok, %Mariaex.Result{command: cmd, rows: rows} = result}) when rows != nil do
     ret = Enum.map(result.rows, fn(row) ->
                   Enum.map_reduce(result.columns, 0, fn(col, num) ->
                                     {{col, Enum.at(row, num)}, num + 1}
@@ -39,6 +36,12 @@ defmodule Exmapper.Adapters.Mariaex do
                 end)
      {:ok, ret}
   end
+
+  def normalize_result({:ok, %Mariaex.Result{command: cmd} = result}) do
+    {:ok, [insert_id: result.last_insert_id, affected_rows: result.num_rows, status: nil, msg: nil, warning_count: 0]}
+  end
+
+  
   
   def normalize_result({:error, %Mariaex.Error{mariadb: %{code: code, message: message}}}) do
     {:error, [code: code, msg: message]}
