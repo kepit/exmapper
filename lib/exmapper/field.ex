@@ -115,11 +115,11 @@ defmodule Exmapper.Field do
     end
     
     
-    def encode(type, key, val, _) when is_list(val) and type in [:string, :text] do
+    def encode(type, key, val, _) when is_list(val) and type in [:string, :text] and not is_nil(val) do
       { key, List.to_string(val) }
     end
     
-    def encode(type, key, val, _) when is_atom(val) and type in [:string, :text] do
+    def encode(type, key, val, _) when is_atom(val) and type in [:string, :text] and not is_nil(val) do
       { key, Atom.to_string(val) }
     end
 
