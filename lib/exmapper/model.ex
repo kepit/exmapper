@@ -83,7 +83,11 @@ defmodule Exmapper.Model do
         end
       end
 
-      defp to_new(args) when is_tuple(args), do: args |> elem(1) |> to_new
+      defp to_new({:error, args}) do
+        Logger.error("No database connection")
+        nil
+      end
+      defp to_new({:ok, args}), do: args |> to_new
       defp to_new(args) when is_list(args), do: Enum.map(args, fn(a) -> new(a) end)
       defp to_new(args) when is_nil(args), do: nil
 
@@ -154,22 +158,20 @@ defmodule Exmapper.Model do
                                         end))
       end
       def update(args) when is_map(args), do: create_or_update(:update, args, where(id: args.id))
-
-        defp create_or_update(type, args, where \\ {"",[]}) do
-        case run_callbacks(__MODULE__, :before, type, args) do
-          {:ok, args} ->
-            args = Enum.reject(
-              Enum.map(Map.from_struct(args),fn({key,val}) ->
-                         field = __fields__[key]
-                         if field[:opts][:required] == true && val == nil && key != :id, do: raise("Field #{key} is required!")
-                         case Exmapper.Utils.is_virtual_type(field[:type]) do
-                           false ->
-                             Exmapper.Field.Transform.encode(field[:type], key, val, field)
-                           true -> nil
-                         end
-                       end),fn(x) -> is_nil(x) end)
-
-            case query(build_query(type, table_name, args, where)) do
+      defp create_or_update(type, args, where \\ {"",[]}) do
+         case run_callbacks(__MODULE__, :before, type, args) do
+           {:ok, args} ->
+             args = Enum.reject(
+               Enum.map(Map.from_struct(args),fn({key,val}) ->
+                          field = __fields__[key]
+                          if field[:opts][:required] == true && val == nil && key != :id, do: raise("Field #{key} is required!")
+                          case Exmapper.Utils.is_virtual_type(field[:type]) do
+                            false ->
+                              Exmapper.Field.Transform.encode(field[:type], key, val, field)
+                            true -> nil
+                          end
+                        end),fn(x) -> is_nil(x) end)
+             case query(build_query(type, table_name, args, where)) do
               {:ok, data} ->
                 id = data[:insert_id]
                 if id == 0 && !is_nil(args[:id]), do: id = args[:id]

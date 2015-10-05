@@ -1,3 +1,56 @@
+defmodule Exmapper.Adapters.Mariaex.Worker do
+  use GenServer
+
+
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts, [])
+  end
+
+  def init(opts) do
+    send(self(), {:connect, opts})
+    {:ok, %{connection: nil}}
+  end
+
+  def query(pid, query, args) do
+    GenServer.call(pid, {query, args})
+  end
+
+  def reconnect(opts) do
+    Process.send_after(self(), {:connect, opts}, 1000)
+  end
+
+  def handle_info({:connect, opts}, state) do
+    Process.flag(:trap_exit, true)
+    case Mariaex.Connection.start_link(opts) do
+      {:ok, pid} ->
+        {:noreply, %{state | connection: pid}}
+      _ ->
+        reconnect(opts)
+        {:noreply, %{state | connection: nil}}
+    end
+  end
+  
+  def handle_call({query, args}, _from, state) do
+    ret = case state.connection do
+            nil ->
+              {:error, "No connection to server"}
+            pid ->
+              Mariaex.Connection.query(pid, query, args)          
+          end
+    {:reply, ret, state}
+  end
+
+  def handle_info({:EXIT, pid, reason}, state) do
+    {:stop, :normal, state}
+  end
+  
+  def handle_info(data, state) do
+    {:stop, :normal, state}
+  end
+  
+end
+
+
 defmodule Exmapper.Adapters.Mariaex do
   
   
@@ -10,7 +63,7 @@ defmodule Exmapper.Adapters.Mariaex do
     pool = if is_nil(params[:repo]), do: :default, else: params[:repo] 
     pool_options = [
                      name: {:local, pool},
-                     worker_module: Mariaex.Connection,
+                     worker_module: Exmapper.Adapters.Mariaex.Worker,
                      size: size,
                      max_overflow: 10
                  ]
@@ -23,7 +76,7 @@ defmodule Exmapper.Adapters.Mariaex do
     :poolboy.transaction(
       pool,
       fn(pid) ->
-        Mariaex.Connection.query(pid, query, args)
+        Exmapper.Adapters.Mariaex.Worker.query(pid, query, args)
       end)
   end
 
@@ -40,14 +93,14 @@ defmodule Exmapper.Adapters.Mariaex do
   def normalize_result({:ok, %Mariaex.Result{command: cmd} = result}) do
     {:ok, [insert_id: result.last_insert_id, affected_rows: result.num_rows, status: nil, msg: nil, warning_count: 0]}
   end
-
-  
-  
   def normalize_result({:error, %Mariaex.Error{mariadb: %{code: code, message: message}}}) do
     {:error, [code: code, msg: message]}
   end
   def normalize_result({:error, %Mariaex.Error{message: msg}}) do
     {:error, [code: "", msg: msg]}
+  end
+  def normalize_result({:error, reason}) do
+    {:error, [code: "", msg: reason]}
   end
 
 end
