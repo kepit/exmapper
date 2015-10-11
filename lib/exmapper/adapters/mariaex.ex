@@ -8,7 +8,6 @@ defmodule Exmapper.Adapters.Mariaex.Worker do
 
   def init(opts) do
     send(self(), {:connect, opts})
-    Process.send_after(self(), :gc, 5000)
     {:ok, %{connection: nil}}
   end
 
@@ -20,20 +19,11 @@ defmodule Exmapper.Adapters.Mariaex.Worker do
     Process.send_after(self(), {:connect, opts}, 1000)
   end
 
-  def handle_info(:gc, state) do
-    :erlang.garbage_collect(self())
-    if state.connection != nil do
-      :erlang.garbage_collect(state.connection)
-    end
-    Process.send_after(self(), :gc, 5000)
-    {:noreply, state}
-  end
-
   def handle_info({:connect, opts}, state) do
     Process.flag(:trap_exit, true)
     case Mariaex.Connection.start_link(opts) do
       {:ok, pid} ->
-        {:noreply, %{state | connection: pid}}
+        {:noreply, %{state | connection: pid}, :hibernate}
       _ ->
         reconnect(opts)
         {:noreply, %{state | connection: nil}}
@@ -47,7 +37,7 @@ defmodule Exmapper.Adapters.Mariaex.Worker do
             pid ->
               Mariaex.Connection.query(pid, query, args)
           end
-    {:reply, ret, state}
+    {:reply, ret, state, :hibernate}
   end
 
   def handle_info({:EXIT, pid, reason}, state) do
