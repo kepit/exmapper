@@ -8,6 +8,7 @@ defmodule Exmapper.Adapters.Mariaex.Worker do
 
   def init(opts) do
     send(self(), {:connect, opts})
+    Process.send_after(self(), :gc, 5000)
     {:ok, %{connection: nil}}
   end
 
@@ -17,6 +18,15 @@ defmodule Exmapper.Adapters.Mariaex.Worker do
 
   def reconnect(opts) do
     Process.send_after(self(), {:connect, opts}, 1000)
+  end
+
+  def handle_info(:gc, state) do
+    :erlang.garbage_collect(self())
+    if state.connection != nil do
+      :erlang.garbage_collect(state.connection)
+    end
+    Process.send_after(self(), :gc, 5000)
+    {:noreply, state}
   end
 
   def handle_info({:connect, opts}, state) do
@@ -35,7 +45,7 @@ defmodule Exmapper.Adapters.Mariaex.Worker do
             nil ->
               {:error, "No connection to server"}
             pid ->
-              Mariaex.Connection.query(pid, query, args)          
+              Mariaex.Connection.query(pid, query, args)
           end
     {:reply, ret, state}
   end
