@@ -4,15 +4,17 @@ defmodule Exmapper.Adapters.Mysql do
     user = params[:username]
     password = params[:password]
     database = params[:database]
+    host = if is_nil(params[:host]), do: "localhost", else: params[:host]
     size = if is_nil(params[:pool_size]), do: 1, else: params[:pool_size]
     encoding = if is_nil(params[:encoding]), do: :utf8, else: params[:encoding]
     pool = if is_nil(params[:repo]), do: :default, else: params[:repo] 
     if is_binary(user), do: user = String.to_char_list(user)
     if is_binary(password), do: password = String.to_char_list(password)
     if is_binary(database), do: database = String.to_char_list(database)
+    if is_binary(host), do: host = String.to_char_list(host)
     :application.start(:crypto)
     :application.start(:emysql)
-    :emysql.add_pool(pool, [{:size,size}, {:user,user}, {:password,password}, {:database,database}, {:encoding,encoding}])
+    :emysql.add_pool(pool, [{:host, host}, {:size,size}, {:user,user}, {:password,password}, {:database,database}, {:encoding,encoding}])
   end
 
   def query(pool, query, args) do
