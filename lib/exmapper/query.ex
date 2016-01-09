@@ -22,54 +22,61 @@ defmodule Exmapper.Query do
   end
 
 
-  defp where_transform(type, value) when type in ["in"] and is_map(value) do 
-    {select_sql, select_args} = select(value.select, value.from, value.where)
+  defp where_transform(type, value, fields) when type in ["in"] and is_map(value) do 
+    {select_sql, select_args} = select(value.select, value.from, value.where, "", fields)
     [type,"(" <> select_sql <> ")", select_args]
   end
-  defp where_transform(type, value) when type in ["in"] and is_list(value) do 
+  defp where_transform(type, value, _) when type in ["in"] and is_list(value) do 
     [type,"(" <> Enum.join(Enum.map(value, fn(_v) -> "?" end),",") <> ")", value]
   end
   
-  defp where_transform(type, value) when type in ["<","<=",">",">=","!=","<>"] do
+  defp where_transform(type, value, _) when type in ["<","<=",">",">=","!=","<>"] do
     [type, "?", value]
   end
 
-  defp where_transform("gt", value), do: [">","?", value]
-  defp where_transform("gte", value), do: [">=","?", value]
-  defp where_transform("lt", value), do: ["<","?", value]
-  defp where_transform("lte", value), do: ["<=","?", value]
-  defp where_transform("like", value), do: ["LIKE","?", value]
-  defp where_transform(_, value), do: ["=","?", value]
+
+  defp where_transform("gt", value, _), do: [">","?", value]
+  defp where_transform("gte", value, _), do: [">=","?", value]
+  defp where_transform("lt", value, _), do: ["<","?", value]
+  defp where_transform("lte", value, _), do: ["<=","?", value]
+  defp where_transform("like", value, _), do: ["LIKE","?", value]
+  defp where_transform(_, value, _), do: ["=","?", value]
   
-  defp build_where([], "AND"), do: {"", []}
-  defp build_where([], "OR"), do: {"", []}
-  defp build_where(args, joiner) do
+  defp build_where([], "AND", _), do: {"", []}
+  defp build_where([], "OR", _), do: {"", []}
+  defp build_where(args, joiner, fields) do
     {ret, values} = Enum.map_reduce args, [], fn({key,value}, acc) ->
       case key do
         :and -> 
-          {sql_str, vals} = build_where(value, "AND")
+          {sql_str, vals} = build_where(value, "AND", fields)
           {sql_str, acc ++ vals}
         :or -> 
-          {sql_str, vals} = build_where(value, "OR")
+          {sql_str, vals} = build_where(value, "OR", fields)
           {sql_str, acc ++ vals}
         _ ->
+          field = Keyword.get(fields, key, nil)
           key = Atom.to_string(key)
           oper = List.last(String.split(key,"."))
           key = String.replace(key, ".#{oper}","")
-          [mark, qm , value] = where_transform(oper, value)
-          { "#{key} #{mark} #{qm}", acc ++ [value]}
+          case field[:type] do
+            :flag -> { "(? & #{key}) = ?", acc ++ [value, value]}
+            _ -> 
+              [mark, qm , value] = where_transform(oper, value, fields)
+              { "#{key} #{mark} #{qm}", acc ++ [value]}
+          end
+          
       end
     end
     {"(" <> (ret |> Enum.join(" #{joiner} ")) <> ")", values}
   end
 
-  def where([]), do: {"",[]}
-  def where(args) do
-    {where_sql, where_args} = build_where(args, "AND")
+  def where([], _), do: {"",[]}
+  def where(args, fields) do
+    {where_sql, where_args} = build_where(args, "AND", fields)
     {"WHERE " <> where_sql, where_args}
   end
 
-  def select(what, table, args, default_order_by \\ "") do
+  def select(what, table, args, default_order_by \\ "", fields \\ []) do
     if what == "", do: what = "*"
     {order_by_sql, order_by_args} = order_by(args)
     args = Keyword.delete(args,:order_by)
@@ -83,7 +90,7 @@ defmodule Exmapper.Query do
     {group_by_sql, group_by_args} = group_by(args)
     args = Keyword.delete(args,:group_by)
     
-    {where_sql, where_args} = where(args)
+    {where_sql, where_args} = where(args, fields)
     
     sql = "SELECT #{what} FROM #{table} #{where_sql} #{group_by_sql} #{order_by_sql} #{limit_sql}"
     sql_args = List.flatten(where_args ++ group_by_args ++ order_by_args ++ limit_args)

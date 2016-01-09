@@ -57,7 +57,7 @@ defmodule Exmapper.Field do
     def encode_args(fields, args) do
       Enum.map args, fn({key,value}) ->
         field = fields[:"#{List.first(String.split(Atom.to_string(key),"."))}"]
-        if is_list(value) do
+        if is_list(value) and field[:type] != :flag do
           {key, Enum.map(value,fn(x) -> elem(encode(field[:type], key, x, field),1) end)}
         else
           encode(field[:type], key, value, field)

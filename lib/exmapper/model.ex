@@ -136,12 +136,12 @@ defmodule Exmapper.Model do
 
       def execute!(sql, args \\ []), do: query!(sql, args) |> result_to_keywords
 
-      def raw(field \\ "*",args \\ []), do: select(field, table_name, Exmapper.Field.Transform.encode_args(__fields__,args), "id ASC") |> query |> elem(1) |> Exmapper.Utils.to_map
-      def all(args \\ []), do: select("*", table_name, Exmapper.Field.Transform.encode_args(__fields__,args), "id ASC") |> query |> to_new
-      def count(args \\ []), do: select("COUNT(*)", table_name, Exmapper.Field.Transform.encode_args(__fields__,args)) |> query |> elem(1) |> List.first |> List.first |> elem(1)
-      def first(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],Exmapper.Field.Transform.encode_args(__fields__,args)), "id ASC") |> query |> to_new |> List.first
-      def last(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],Exmapper.Field.Transform.encode_args(__fields__,args)), "id DESC") |> query |> to_new |> List.first
-      def get(id), do: select("*", table_name, [id: id]) |> query |> to_new |> List.first
+      def raw(field \\ "*",args \\ []), do: select(field, table_name, Exmapper.Field.Transform.encode_args(__fields__,args), "id ASC", __fields__) |> query |> elem(1) |> Exmapper.Utils.to_map
+      def all(args \\ []), do: select("*", table_name, Exmapper.Field.Transform.encode_args(__fields__,args), "id ASC", __fields__) |> query |> to_new
+      def count(args \\ []), do: select("COUNT(*)", table_name, Exmapper.Field.Transform.encode_args(__fields__,args), "", __fields__) |> query |> elem(1) |> List.first |> List.first |> elem(1)
+      def first(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],Exmapper.Field.Transform.encode_args(__fields__,args)), "id ASC", __fields__) |> query |> to_new |> List.first
+      def last(args \\ []), do: select("*", table_name, Keyword.merge([limit: 1],Exmapper.Field.Transform.encode_args(__fields__,args)), "id DESC", __fields__) |> query |> to_new |> List.first
+      def get(id), do: select("*", table_name, [id: id], "", __fields__) |> query |> to_new |> List.first
       
       def create!(args), do: elem(create(args),1)
       def create(args) when is_list(args), do: create_or_update(:create, new(args), {"",[]})
@@ -157,7 +157,7 @@ defmodule Exmapper.Model do
                                           acc
                                         end))
       end
-      def update(args) when is_map(args), do: create_or_update(:update, args, where(id: args.id))
+      def update(args) when is_map(args), do: create_or_update(:update, args, where([id: args.id], __fields__))
       defp create_or_update(type, args, where \\ {"",[]}) do
          case run_callbacks(__MODULE__, :before, type, args) do
            {:ok, args} ->
@@ -196,7 +196,7 @@ defmodule Exmapper.Model do
       def delete(args) when is_map(args) do
         case run_callbacks(__MODULE__, :before, :delete, args) do
           {:ok, args} ->
-            case query(build_query(:delete, table_name,  where(id: args.id))) do
+            case query(build_query(:delete, table_name,  where([id: args.id], __fields__))) do
               {:ok, _} ->
                 run_callbacks(__MODULE__, :after, :delete, args)
                 {:ok, :success}
