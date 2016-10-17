@@ -21,7 +21,7 @@ defmodule Exmapper.Adapters.Mariaex.Worker do
 
   def handle_info({:connect, opts}, state) do
     Process.flag(:trap_exit, true)
-    case Mariaex.Connection.start_link(opts) do
+    case Mariaex.start_link(opts) do
       {:ok, pid} ->
         {:noreply, %{state | connection: pid}, :hibernate}
       _ ->
@@ -35,7 +35,7 @@ defmodule Exmapper.Adapters.Mariaex.Worker do
             nil ->
               {:error, "No connection to server"}
             pid ->
-              Mariaex.Connection.query(pid, query, args)
+              Mariaex.query(pid, query, args)
           end
     {:reply, ret, state, :hibernate}
   end
@@ -58,6 +58,7 @@ defmodule Exmapper.Adapters.Mariaex do
     user = params[:username]
     password = params[:password]
     database = params[:database]
+    host = params[:host]
     size = if is_nil(params[:pool_size]), do: 10, else: params[:pool_size]
     encoding = if is_nil(params[:encoding]), do: :utf8, else: params[:encoding]
     pool = if is_nil(params[:repo]), do: :default, else: params[:repo] 
@@ -67,7 +68,7 @@ defmodule Exmapper.Adapters.Mariaex do
                      size: size,
                      max_overflow: 10
                  ]
-    children = [:poolboy.child_spec(:mariaex, pool_options, [username: user, password: password, database: database, charset: to_string(encoding)])]
+    children = [:poolboy.child_spec(:mariaex, pool_options, [username: user, password: password, database: database, hostname: host, charset: to_string(encoding)])]
     Supervisor.start_link(children, strategy: :one_for_one)
     :ok
   end

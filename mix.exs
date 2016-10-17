@@ -28,7 +28,7 @@ defmodule Exmapper.Mixfile do
     [
         { :timex, "~> 0.19.3", [hex_app: :timex] },
 	      { :json, github: "kepit/json" },
-        { :mariaex, "~> 0.4.3" },
+        { :mariaex, "~> 0.7.3" },
         { :poolboy, "~> 1.5.1" },
         { :emysql, github: "kepit/emysql" },
     ]
