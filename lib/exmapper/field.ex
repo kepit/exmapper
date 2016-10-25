@@ -75,7 +75,7 @@ defmodule Exmapper.Field do
 
     def encode(:datetime, key, val, _) do
       #{key, {{val.year,val.month,val.day},{val.hour,val.minute,val.second,0}}}
-      {key, {{val.year,val.month,val.day},{val.hour,val.minute,val.second}}}
+      {key, {{val.year,val.month,val.day},{val.hour,val.minute,val.second,0}}}
     end
 
     def encode(:json, key, val, _) when is_map(val) do
@@ -87,7 +87,7 @@ defmodule Exmapper.Field do
       retval = Enum.find_index(enums, fn(x) -> x == val end)
       if is_nil(retval) do
         #retval = nil
-        retval = :undefined
+        retval = "NULL"
       end
       {key, retval}
     end
@@ -127,7 +127,7 @@ defmodule Exmapper.Field do
 
     def encode(_ ,key, _val, _) when is_nil(_val) do
 #      {key, nil} #:undefined
-      {key, :undefined}
+      {key, "NULL"}
     end
 
     def encode(_, key, val, _) do
@@ -146,7 +146,7 @@ defmodule Exmapper.Field do
       
     end
 
-    def decode(_, _, _, _, :undefined) do
+    def decode(_, _, _, _, "NULL") do
       nil
     end
 
@@ -200,7 +200,7 @@ defmodule Exmapper.Field do
         Timex.Date.from(elem(val,1),:local)
       else
         if is_nil(val) do
-          Timex.Date.from({{0,0,0},{0,0,0}}, :local)
+          Timex.Date.from({{0,0,0},{0,0,0,0}}, :local)
         else
           if is_tuple(val) do
             Timex.Date.from(val, :local)
